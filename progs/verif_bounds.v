@@ -32,11 +32,11 @@ Definition od_add_spec : ident * funspec :=
  DECLARE _od_add
   WITH p0: Z, p1: Z
   PRE [ _p0 OF tint, _p1 OF tint ]
-          PROP  (Int.min_signed <= p0 <= Int.max_signed; Int.min_signed <= p1 <= Int.max_signed)
+          PROP  (Int.min_signed/2 <= p0 <= (Int.max_signed - 1)/2; Int.min_signed/2 <= p1 <= (Int.max_signed - 1)/2)
           LOCAL (temp _p0 (Vint (Int.repr p0)); temp _p1 (Vint (Int.repr p1)))
           SEP   ()
   POST [ tint ]
-          PROP ()
+          PROP (Int.min_signed <= p0 + p1 <= Int.max_signed - 1)
           LOCAL (temp ret_temp (Vint (Int.repr (p0 + p1))))
           SEP ().
 
@@ -44,11 +44,11 @@ Definition od_sub_spec : ident * funspec :=
  DECLARE _od_sub
   WITH p0: Z, p1: Z
   PRE [ _p0 OF tint, _p1 OF tint ]
-          PROP  (Int.min_signed <= p0 <= Int.max_signed; Int.min_signed <= p1 <= Int.max_signed)
+          PROP  (Int.min_signed/2 <= p0 <= (Int.max_signed - 1)/2; Int.min_signed/2 <= p1 <= (Int.max_signed - 1)/2)
           LOCAL (temp _p0 (Vint (Int.repr p0)); temp _p1 (Vint (Int.repr p1)))
           SEP   ()
   POST [ tint ]
-          PROP ()
+          PROP (Int.min_signed <= p0 + p1 <= Int.max_signed - 1)
           LOCAL (temp ret_temp (Vint (Int.repr (p0 - p1))))
           SEP ().
 
@@ -81,79 +81,68 @@ Definition od_fdct_2_spec : ident * funspec :=
 Definition Gprog : funspecs :=
         ltac:(with_library prog [sumtwo_spec; od_add_spec; od_add_avg_spec; od_fdct_2_spec]).
 
+Lemma add_le_2: forall min max a b: Z, min mod 2 = 0        -> max mod 2 = 0       ->
+                                       min < 0              -> max > 0             ->
+                                       min/2 <= a <= max/2  -> min/2 <= b <= max/2 ->
+                                       min <= a + b <= max.
+  intros.
+  split.
+
+  replace min with (min/2 + min/2).
+  apply Z.add_le_mono; omega.
+  symmetry.
+  rewrite Z.add_diag.
+  apply Z_div_exact_full_2; omega.
+
+  replace max with (max/2 + max/2).
+  apply Z.add_le_mono; omega.
+  rewrite Z.add_diag.
+  symmetry.
+  apply Z_div_exact_full_2; omega.
+Qed.
+
 Lemma body_od_add: semax_body Vprog Gprog f_od_add od_add_spec.
 Proof.
   start_function.
   forward.
-Qed.  
+  entailer!.
+  unfold Int.min_signed in *.
+  simpl in *.
+  apply add_le_2; try (auto || omega).
+Qed.
 
 Lemma body_od_sub: semax_body Vprog Gprog f_od_sub od_sub_spec.
 Proof.
   start_function.
   forward.
-Qed.  
+  entailer!.
+  unfold Int.min_signed in *.
+  simpl in *.
+  apply add_le_2; try (auto || omega).
+Qed.
 
 Require Import Psatz.
 Lemma body_od_add_avg: semax_body Vprog Gprog f_od_add_avg od_add_avg_spec.
 Proof.
   start_function.
   forward_call (p0, p1).
-  Focus 1.
-  (* unfold Int.min_signed in *. *)
-  (* unfold Int.max_signed in *. *)
-  (* simpl in *. *)
-  (* split. *)
-  (* split. *)
-  
-
-  (* Lemma hi: Int.max_signed / 2 < Int.max_signed. *)
-  (*   apply Z_div_lt; repable_signed. *)
-  (* Qed. *)
-  (* Lemma ho: forall i: Z, i < 0 -> i <= i / 2. *)
-  (*   intros. *)
-  (*   apply Zdiv_le_lower_bound; omega. *)
-  (* Qed. *)
-  repeat split.
-  apply Z.le_trans with (Int.min_signed/2); try (omega || computable).
-  apply Z.le_trans with ((Int.max_signed-1)/2); try (omega || computable).
-  apply Z.le_trans with (Int.min_signed/2); try (omega || computable).
-  apply Z.le_trans with ((Int.max_signed-1)/2); try (omega || computable).
-
   forward.
   entailer!.
   f_equal.
   unfold Int.shr.
-  f_equal.
-  rewrite Z.shiftr_div_pow2.
-  simpl.
   rewrite Int.signed_repr.
-  rewrite Z.pow_pos_fold.
-  replace 1 with (Z.succ 0). Focus 2. reflexivity.
-  rewrite Z.pow_succ_r.
-  reflexivity.
-  reflexivity.
-  split.
-
-  replace Int.min_signed with ((Int.min_signed/2) + (Int.min_signed/2)).
-  (* add_le_mono: forall n m p q : Z, n <= m -> p <= q -> n + p <= m + q  *)
-  apply Z.add_le_mono; omega.
-  computable.
-
-  apply Z.le_trans with (Int.max_signed - 1).
-  replace (Int.max_signed-1) with (((Int.max_signed-1)/2) + ((Int.max_signed-1)/2)).
-  apply Z.add_le_mono; omega.
-  computable.
-
-  omega.
   rewrite Int.unsigned_repr.
+  rewrite Z.shiftr_div_pow2.
+  auto.
   omega.
   repable_signed.
-Qed.  
+  omega.
+Qed.
 
 Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
 Proof.
   start_function.
-  
+
 Qed.
 
 Lemma body_sumarray: semax_body Vprog Gprog f_sumtwo sumtwo_spec.
@@ -197,4 +186,3 @@ prove_semax_prog.
 semax_func_cons body_sumarray.
 semax_func_cons body_main.
 Qed.
-
