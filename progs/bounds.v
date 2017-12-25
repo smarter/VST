@@ -75,7 +75,19 @@ Definition _t : ident := 62%positive.
 Definition _type : ident := 68%positive.
 Definition _t'1 : ident := 73%positive.
 Definition _t'10 : ident := 82%positive.
+Definition _t'11 : ident := 83%positive.
+Definition _t'12 : ident := 84%positive.
+Definition _t'13 : ident := 85%positive.
+Definition _t'14 : ident := 86%positive.
+Definition _t'15 : ident := 87%positive.
+Definition _t'16 : ident := 88%positive.
+Definition _t'17 : ident := 89%positive.
+Definition _t'18 : ident := 90%positive.
+Definition _t'19 : ident := 91%positive.
 Definition _t'2 : ident := 74%positive.
+Definition _t'20 : ident := 92%positive.
+Definition _t'21 : ident := 93%positive.
+Definition _t'22 : ident := 94%positive.
 Definition _t'3 : ident := 75%positive.
 Definition _t'4 : ident := 76%positive.
 Definition _t'5 : ident := 77%positive.
@@ -172,15 +184,17 @@ Definition f_od_rot2 := {|
                 (_c0, tint) :: (_q0, tint) :: (_c1, tint) :: (_q1, tint) ::
                 nil);
   fn_vars := nil;
-  fn_temps := ((_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_t'2, tint) :: (_t'1, tint) :: (_t'3, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some _t'1)
-      (Evar _od_mul (Tfunction (Tcons tint (Tcons tint (Tcons tint Tnil)))
-                      tint cc_default))
-      ((Ederef (Etempvar _p0 (tptr tint)) tint) :: (Etempvar _c0 tint) ::
-       (Etempvar _q0 tint) :: nil))
+    (Ssequence
+      (Sset _t'3 (Ederef (Etempvar _p0 (tptr tint)) tint))
+      (Scall (Some _t'1)
+        (Evar _od_mul (Tfunction (Tcons tint (Tcons tint (Tcons tint Tnil)))
+                        tint cc_default))
+        ((Etempvar _t'3 tint) :: (Etempvar _c0 tint) ::
+         (Etempvar _q0 tint) :: nil)))
     (Sassign (Ederef (Etempvar _p1 (tptr tint)) tint) (Etempvar _t'1 tint)))
   (Ssequence
     (Scall (Some _t'2)
@@ -201,7 +215,11 @@ Definition f_od_rotate_pi4_kernel := {|
   fn_temps := ((_t, tint) :: (_t'10, tint) :: (_t'9, tint) :: (_t'8, tint) ::
                (_t'7, tint) :: (_t'6, tint) :: (_t'5, tint) ::
                (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
-               (_t'1, tint) :: nil);
+               (_t'1, tint) :: (_t'22, tint) :: (_t'21, tint) ::
+               (_t'20, tint) :: (_t'19, tint) :: (_t'18, tint) ::
+               (_t'17, tint) :: (_t'16, tint) :: (_t'15, tint) ::
+               (_t'14, tint) :: (_t'13, tint) :: (_t'12, tint) ::
+               (_t'11, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -210,39 +228,51 @@ Definition f_od_rotate_pi4_kernel := {|
       (Sifthenelse (Etempvar _avg tint)
         (Ssequence
           (Ssequence
-            (Scall (Some _t'3)
-              (Evar _od_add_avg (Tfunction (Tcons tint (Tcons tint Tnil))
-                                  tint cc_default))
-              ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-               (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+            (Ssequence
+              (Sset _t'21 (Ederef (Etempvar _p1 (tptr tint)) tint))
+              (Ssequence
+                (Sset _t'22 (Ederef (Etempvar _p0 (tptr tint)) tint))
+                (Scall (Some _t'3)
+                  (Evar _od_add_avg (Tfunction (Tcons tint (Tcons tint Tnil))
+                                      tint cc_default))
+                  ((Etempvar _t'21 tint) :: (Etempvar _t'22 tint) :: nil))))
             (Sset _t'2 (Ecast (Etempvar _t'3 tint) tint)))
           (Sset _t'1 (Ecast (Etempvar _t'2 tint) tint)))
         (Ssequence
           (Ssequence
-            (Scall (Some _t'4)
-              (Evar _od_add (Tfunction (Tcons tint (Tcons tint Tnil)) tint
-                              cc_default))
-              ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-               (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+            (Ssequence
+              (Sset _t'19 (Ederef (Etempvar _p1 (tptr tint)) tint))
+              (Ssequence
+                (Sset _t'20 (Ederef (Etempvar _p0 (tptr tint)) tint))
+                (Scall (Some _t'4)
+                  (Evar _od_add (Tfunction (Tcons tint (Tcons tint Tnil))
+                                  tint cc_default))
+                  ((Etempvar _t'19 tint) :: (Etempvar _t'20 tint) :: nil))))
             (Sset _t'2 (Ecast (Etempvar _t'4 tint) tint)))
           (Sset _t'1 (Ecast (Etempvar _t'2 tint) tint))))
       (Sifthenelse (Etempvar _avg tint)
         (Ssequence
           (Ssequence
-            (Scall (Some _t'6)
-              (Evar _od_sub_avg (Tfunction (Tcons tint (Tcons tint Tnil))
-                                  tint cc_default))
-              ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-               (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+            (Ssequence
+              (Sset _t'17 (Ederef (Etempvar _p1 (tptr tint)) tint))
+              (Ssequence
+                (Sset _t'18 (Ederef (Etempvar _p0 (tptr tint)) tint))
+                (Scall (Some _t'6)
+                  (Evar _od_sub_avg (Tfunction (Tcons tint (Tcons tint Tnil))
+                                      tint cc_default))
+                  ((Etempvar _t'17 tint) :: (Etempvar _t'18 tint) :: nil))))
             (Sset _t'5 (Ecast (Etempvar _t'6 tint) tint)))
           (Sset _t'1 (Ecast (Etempvar _t'5 tint) tint)))
         (Ssequence
           (Ssequence
-            (Scall (Some _t'7)
-              (Evar _od_sub (Tfunction (Tcons tint (Tcons tint Tnil)) tint
-                              cc_default))
-              ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-               (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+            (Ssequence
+              (Sset _t'15 (Ederef (Etempvar _p1 (tptr tint)) tint))
+              (Ssequence
+                (Sset _t'16 (Ederef (Etempvar _p0 (tptr tint)) tint))
+                (Scall (Some _t'7)
+                  (Evar _od_sub (Tfunction (Tcons tint (Tcons tint Tnil))
+                                  tint cc_default))
+                  ((Etempvar _t'15 tint) :: (Etempvar _t'16 tint) :: nil))))
             (Sset _t'5 (Ecast (Etempvar _t'7 tint) tint)))
           (Sset _t'1 (Ecast (Etempvar _t'5 tint) tint)))))
     (Sset _t (Etempvar _t'1 tint)))
@@ -262,18 +292,24 @@ Definition f_od_rotate_pi4_kernel := {|
       (Sifthenelse (Ebinop Oeq (Etempvar _type tint)
                      (Econst_int (Int.repr 0) tint) tint)
         (Ssequence
-          (Scall (Some _t'9)
-            (Evar _od_sub (Tfunction (Tcons tint (Tcons tint Tnil)) tint
-                            cc_default))
-            ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-             (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+          (Ssequence
+            (Sset _t'13 (Ederef (Etempvar _p1 (tptr tint)) tint))
+            (Ssequence
+              (Sset _t'14 (Ederef (Etempvar _p0 (tptr tint)) tint))
+              (Scall (Some _t'9)
+                (Evar _od_sub (Tfunction (Tcons tint (Tcons tint Tnil)) tint
+                                cc_default))
+                ((Etempvar _t'13 tint) :: (Etempvar _t'14 tint) :: nil))))
           (Sset _t'8 (Ecast (Etempvar _t'9 tint) tint)))
         (Ssequence
-          (Scall (Some _t'10)
-            (Evar _od_add (Tfunction (Tcons tint (Tcons tint Tnil)) tint
-                            cc_default))
-            ((Ederef (Etempvar _p1 (tptr tint)) tint) ::
-             (Ederef (Etempvar _p0 (tptr tint)) tint) :: nil))
+          (Ssequence
+            (Sset _t'11 (Ederef (Etempvar _p1 (tptr tint)) tint))
+            (Ssequence
+              (Sset _t'12 (Ederef (Etempvar _p0 (tptr tint)) tint))
+              (Scall (Some _t'10)
+                (Evar _od_add (Tfunction (Tcons tint (Tcons tint Tnil)) tint
+                                cc_default))
+                ((Etempvar _t'11 tint) :: (Etempvar _t'12 tint) :: nil))))
           (Sset _t'8 (Ecast (Etempvar _t'10 tint) tint))))
       (Sassign (Ederef (Etempvar _p1 (tptr tint)) tint) (Etempvar _t'8 tint)))))
 |}.
