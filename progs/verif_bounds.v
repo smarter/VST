@@ -28,15 +28,19 @@ Definition sumtwo_spec : ident * funspec :=
           LOCAL(temp ret_temp  (Vint (Int.repr (a + b))))
           SEP (TT).
 
+Infix "<<" := Z.shiftl (at level 51, left associativity).
+Infix ">>" := Z.shiftr (at level 51, left associativity).
+
 Definition od_add_spec : ident * funspec :=
  DECLARE _od_add
   WITH p0: Z, p1: Z
   PRE [ _p0 OF tint, _p1 OF tint ]
-          PROP  (Int.min_signed/2 <= p0 <= (Int.max_signed - 1)/2; Int.min_signed/2 <= p1 <= (Int.max_signed - 1)/2)
+          PROP  (Int.min_signed >> 1 <= p0 <= Int.max_signed >> 1;
+                 Int.min_signed >> 1 <= p1 <= Int.max_signed >> 1)
           LOCAL (temp _p0 (Vint (Int.repr p0)); temp _p1 (Vint (Int.repr p1)))
           SEP   ()
   POST [ tint ]
-          PROP (Int.min_signed <= p0 + p1 <= Int.max_signed - 1)
+          PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr (p0 + p1))))
           SEP ().
 
@@ -44,11 +48,12 @@ Definition od_sub_spec : ident * funspec :=
  DECLARE _od_sub
   WITH p0: Z, p1: Z
   PRE [ _p0 OF tint, _p1 OF tint ]
-          PROP  (Int.min_signed/2 <= p0 <= (Int.max_signed - 1)/2; Int.min_signed/2 <= p1 <= (Int.max_signed - 1)/2)
+          PROP  (Int.min_signed >> 1 <= p0 <= Int.max_signed >> 1;
+                 Int.min_signed >> 1 <= p1 <= Int.max_signed >> 1)
           LOCAL (temp _p0 (Vint (Int.repr p0)); temp _p1 (Vint (Int.repr p1)))
           SEP   ()
   POST [ tint ]
-          PROP (Int.min_signed <= p0 + p1 <= Int.max_signed - 1)
+          PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr (p0 - p1))))
           SEP ().
 
@@ -56,32 +61,50 @@ Definition od_add_avg_spec : ident * funspec :=
  DECLARE _od_add_avg
   WITH p0: Z, p1: Z
   PRE [ _p0 OF tint, _p1 OF tint ]
-          PROP  (Int.min_signed/2 <= p0 <= (Int.max_signed - 1)/2; Int.min_signed/2 <= p1 <= (Int.max_signed - 1)/2)
+          PROP  (Int.min_signed >> 1 <= p0 <= Int.max_signed >> 1;
+                 Int.min_signed >> 1 <= p1 <= Int.max_signed >> 1)
           LOCAL (temp _p0 (Vint (Int.repr p0)); temp _p1 (Vint (Int.repr p1)))
           SEP   ()
   POST [ tint ]
           PROP ()
-          LOCAL (temp ret_temp (Vint (Int.repr ((p0 + p1) / 2))))
+          LOCAL (temp ret_temp (Vint (Int.repr ((p0 + p1) >> 1))))
           SEP ().
 
- Infix "<<" := Z.shiftl (at level 51, left associativity).
- Infix ">>" := Z.shiftr (at level 51, left associativity).
+Definition od_mul_Z := fun (n c q: Z) => ((n*c + ((1 << q) >> 1)) >> q).
 
 Definition od_mul_spec : ident * funspec :=
  DECLARE _od_mul
   WITH n: Z, c: Z, q: Z
   PRE [ _n OF tint, _c OF tint, _q OF tint ]
-          PROP  (Int.min_signed <= n <= Int.max_signed; 0 <= c <= 65535; 0 <= q <= 15)
+          PROP  (Int.min_signed >> 17 <= n <= Int.max_signed >> 17; 0 <= c <= 65535; 0 <= q <= 15)
           LOCAL (temp _n (Vint (Int.repr n)); temp _c (Vint (Int.repr c)); temp _q (Vint (Int.repr q)))
           SEP   ()
   POST [ tint ]
           PROP ()
-          LOCAL (temp ret_temp (Vint (Int.repr ((n*c + ((1 << q) >> 1)) >> q))))
+          LOCAL (temp ret_temp (Vint (Int.repr (od_mul_Z n c q))))
           SEP ().
+
+Definition od_rot2_spec : ident * funspec :=
+ DECLARE _od_rot2
+  WITH p0: val, p1: val, sh: share, t: Z, c0: Z, q0: Z, c1: Z, q1: Z, i0: Z
+  PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint), _t OF tint, _c0 OF tint, _q0 OF tint, _c1 OF tint, _q1 OF tint ]
+          PROP  (readable_share sh;
+                 Int.min_signed >> 17 <= i0 <= Int.max_signed >> 17; 0 <= c0 <= 65535; 0 <= q0 <= 15;
+                 0 <= c1 <= 65535; 0 <= q1 <= 15)
+          LOCAL (temp _p0 p0; temp _p1 p1;
+                 temp _c0 (Vint (Int.repr c0)); temp _q0 (Vint (Int.repr q0));
+                 temp _c1 (Vint (Int.repr c1)); temp _q1 (Vint (Int.repr q1)))
+          SEP   (data_at sh (tptr tint) (Vint (Int.repr i0)) p0)
+  POST [ tvoid ] EX o0: Z, EX o1: Z,
+          PROP (o0 = (od_mul_Z i0 c0 q0);
+                o1 = (od_mul_Z o0 c0 q0))
+          LOCAL ()
+          SEP (data_at sh (tptr tint) (Vint (Int.repr o0)) p0;
+               data_at sh (tptr tint) (Vint (Int.repr o1)) p1).
 
 Definition od_fdct_2_spec : ident * funspec :=
  DECLARE _od_fdct_2
-  WITH p0: val, p1: val, sh : share, i0: Z, i1: Z, o0: Z, o1: Z
+  WITH p0: val, p1: val, sh : share, i0: Z, i1: Z(* , o0: Z, o1: Z *)
   PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint) ]
           PROP  (readable_share sh; 0 <= i0 <= 8191; 0 <= i1 <= 8191)
           LOCAL (temp _p0 p0; temp _p1 p1)
@@ -95,65 +118,74 @@ Definition od_fdct_2_spec : ident * funspec :=
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
-    sumtwo_spec; od_add_spec; od_add_avg_spec; od_mul_spec; od_fdct_2_spec
+    sumtwo_spec; od_add_spec; od_add_avg_spec; od_mul_spec; od_rot2_spec; od_fdct_2_spec
   ]).
 
-Lemma add_le_2: forall min max a b: Z, min mod 2 = 0        -> max mod 2 = 0       ->
-                                       min < 0              -> max > 0             ->
-                                       min/2 <= a <= max/2  -> min/2 <= b <= max/2 ->
+Lemma add_le_2: forall min max a b: Z, Zeven min ->
+                                       min < 0                   -> max > 0 ->
+                                       min >> 1 <= a <= max >> 1 -> min >> 1 <= b <= max >> 1 ->
                                        min <= a + b <= max.
   intros.
   split.
 
-  replace min with (min/2 + min/2).
+  replace min with ((min >> 1) + (min >> 1)).
   apply Z.add_le_mono; omega.
   symmetry.
   rewrite Z.add_diag.
-  apply Z_div_exact_full_2; omega.
+  unfold Z.shiftr.
+  simpl.
+  apply Zeven_div2.
+  trivial.
 
-  replace max with (max/2 + max/2).
-  apply Z.add_le_mono; omega.
-  rewrite Z.add_diag.
-  symmetry.
-  apply Z_div_exact_full_2; omega.
+  destruct Zeven_odd_dec with max.
+  - replace max with ((max >> 1) + (max >> 1)).
+    apply Z.add_le_mono; omega.
+    rewrite Z.add_diag.
+    unfold Z.shiftr.
+    simpl.
+    symmetry.
+    apply Zeven_div2.
+    trivial.
+  - replace max with ((max >> 1) + (max >> 1) + 1).
+    apply Z.le_trans with ((max >> 1) + (max >> 1)).
+    apply Z.add_le_mono; omega.
+    omega.
+    rewrite Z.add_diag.
+    unfold Z.shiftr.
+    simpl.
+    symmetry.
+    apply Zodd_div2.
+    trivial.
 Qed.
 
-(* Lemma body_od_add: semax_body Vprog Gprog f_od_add od_add_spec. *)
-(* Proof. *)
-(*   start_function. *)
-(*   forward. *)
-(*   entailer!. *)
-(*   unfold Int.min_signed in *. *)
-(*   simpl in *. *)
-(*   apply add_le_2; try (auto || omega). *)
-(* Qed. *)
+Lemma body_od_add: semax_body Vprog Gprog f_od_add od_add_spec.
+Proof.
+  start_function.
+  forward.
+Qed.
 
-(* Lemma body_od_sub: semax_body Vprog Gprog f_od_sub od_sub_spec. *)
-(* Proof. *)
-(*   start_function. *)
-(*   forward. *)
-(*   entailer!. *)
-(*   unfold Int.min_signed in *. *)
-(*   simpl in *. *)
-(*   apply add_le_2; try (auto || omega). *)
-(* Qed. *)
+Lemma body_od_sub: semax_body Vprog Gprog f_od_sub od_sub_spec.
+Proof.
+  start_function.
+  forward.
+Qed.
 
-(* Lemma body_od_add_avg: semax_body Vprog Gprog f_od_add_avg od_add_avg_spec. *)
-(* Proof. *)
-(*   start_function. *)
-(*   forward_call (p0, p1). *)
-(*   forward. *)
-(*   entailer!. *)
-(*   f_equal. *)
-(*   unfold Int.shr. *)
-(*   rewrite Int.signed_repr. *)
-(*   rewrite Int.unsigned_repr. *)
-(*   rewrite Z.shiftr_div_pow2. *)
-(*   auto. *)
-(*   omega. *)
-(*   repable_signed. *)
-(*   omega. *)
-(* Qed. *)
+Lemma body_od_add_avg: semax_body Vprog Gprog f_od_add_avg od_add_avg_spec.
+Proof.
+  start_function.
+  forward_call (p0, p1).
+  forward.
+  entailer!.
+  f_equal.
+  unfold Int.shr.
+  rewrite Int.signed_repr.
+  rewrite Int.unsigned_repr.
+  rewrite Z.shiftr_div_pow2.
+  auto.
+  omega.
+  repable_signed.
+  apply add_le_2; try (easy || repable_signed).
+Qed.
 
 Lemma conj_same: forall P: Prop, P -> P /\ P.
   intros.
@@ -167,6 +199,16 @@ Lemma shiftl_le: forall m p q, m > 0 -> p >= 0 -> q >= 0 -> p <= q -> (m << p) <
   omega.
   apply two_p_monotone.
   omega.
+Qed.
+
+Lemma shr_signed: forall m n,
+    Int.min_signed <= m <= Int.max_signed ->
+    0 <= n <= Int.max_unsigned ->
+    Int.repr (m >> n) = Int.shr (Int.repr m) (Int.repr n).
+  intros.
+  unfold Int.shr.
+  f_equal.
+  rewrite Int.signed_repr, Int.unsigned_repr; auto.
 Qed.
 
 Lemma body_od_mul: semax_body Vprog Gprog f_od_mul od_mul_spec.
@@ -211,21 +253,12 @@ Proof.
   simpl.
   f_equal.
 
-  Lemma shr_signed: forall m n,
-      Int.min_signed <= m <= Int.max_signed ->
-      0 <= n <= Int.max_unsigned ->
-      Int.repr (m >> n) = Int.shr (Int.repr m) (Int.repr n).
-    intros.
-    unfold Int.shr.
-    f_equal.
-    rewrite Int.signed_repr, Int.unsigned_repr; auto.
-  Qed.
-
   (* Lemma add_signed: forall m n, *)
   (*     (* Int.min_signed <= m <= Int.max_signed -> *) *)
   (*     (* 0 <= n <= Int.max_unsigned -> *) *)
   (*     Int.repr (m + n) = Int.shr (Int.repr m) (Int.repr n). *)
 
+  unfold od_mul_Z.
   rewrite shr_signed.
   f_equal.
   rewrite Int.add_signed.
@@ -236,17 +269,9 @@ Proof.
   unfold Int.shr, Int.shl.
   repeat rewrite Int.signed_repr, Int.unsigned_repr; try repable_signed.
   rewrite Int.unsigned_repr.
-  split.
-  apply Z.le_trans with (1 << 0).
-  simpl.
-  repable_signed.
-
-  apply shiftl_le; omega.
-  apply Z.le_trans with (1 << 15).
-  apply shiftl_le; omega.
-  unfold Int.max_signed; simpl; omega.
-  repable_signed.
-  rewrite Int.unsigned_repr.
+  normalize. repable_signed.
+  normalize.
+  
   (* Int.min_signed <= 1 << q >> 1 <= Int.max_signed *)
   split.
   (**)  apply Z.le_trans with ((1 << 0) >> 1).
@@ -271,61 +296,25 @@ Proof.
     omega.
     omega.
     unfold Int.max_signed, Z.shiftr; simpl; omega.
+    normalize.
 
-    split; repable_signed.
-    repeat rewrite Int.unsigned_repr.
-
-  auto.
-  repable_signed.
-  repable_signed.
-
-
-
-
-
-    unfold Int.min_signed.
-    unfold Z.shiftr.
-    simpl.
-    omega
-    repeat rewrite Int.Zshiftr_div_two_p
-    apply Z_div_le
-    unfold two_p, two_power_pos; simpl; omega
-    apply shiftl_le
-    omega. omega. omega.
-    unfold Z.shiftr.
-    simpl
-    rewrite Int.Zshiftr_mul_two_p
-
-
-  unfold Int.max_signed.
-  simpl.
-
-  destruct q.
-  reflexivity.
-  simpl. unfold Pos.ite
-
-  replace (1 << q) with (Int.signed (Int.repr (1 << q))).
-  apply Int.signed_range.
-  apply Int.signed_repr.
   split.
+  (**) admit.
+  (**) admit.
+  split.
+  (**) admit.
+  (**) admit.
 
+  split; repable_signed.
+Admitted.
 
-  rewrite <- (Z.add_reg_l (n * c)).
-  unfold Int.shr.
-
-  unfold Int.shl.
-  unfold Z.shiftl, Z.shiftr.
-  simpl.
-  rewrite Int.signed_repr.
-
-  unfold Int.iwordsize.
-  unfold Int.zwordsize.
-  simpl.
-  unfold Int.ltu.
-  repeat rewrite Int.unsigned_repr.
-
-
+Lemma body_od_rot2: semax_body Vprog Gprog f_od_rot2 od_rot2_spec.
+Proof.
+  start_function.
+  forward_call (i0, c0, q0).
+  forward.
 Qed.
+
 
 Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
 Proof.
