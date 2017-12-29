@@ -78,6 +78,26 @@ Definition od_add_avg_spec : ident * funspec :=
 
 Definition od_sub_avg_Z := fun (p0 p1: Z) => (od_sub_Z p0 p1) >>> 1.
 
+Lemma od_sub_avg_bounded : forall p0 p1 max: Z, max > 0 -> -max-1 <= p0 <= max -> -max-1 <= p1 <= max ->
+                                                    -max-1 <= od_sub_avg_Z p0 p1 <= max.
+  intros.
+  split.
+  unfold od_sub_avg_Z, Z.shiftr. simpl.
+  rewrite Z.div2_div.
+  apply Z.div_le_lower_bound.
+  omega.
+  unfold od_sub_Z.
+  omega.
+  unfold od_sub_avg_Z, od_sub_Z, Z.shiftr.
+  simpl.
+  apply Z.le_trans with (Z.div2 (1 + max*2)).
+  repeat rewrite Z.div2_div.
+  apply Z.div_le_mono; omega.
+  rewrite Z.div2_div.
+  rewrite Z_div_plus.
+  unfold Z.div. simpl. omega. omega.
+Qed.
+
 Definition od_sub_avg_spec : ident * funspec :=
  DECLARE _od_sub_avg
   WITH p0: Z, p1: Z
@@ -128,17 +148,19 @@ Definition _AVG : Z := 1.
 
 Definition od_rotate_pi4_kernel_sub_avg_Z :=
   fun (p0 p1 c0 q0 c1 q1: Z) =>
-    let t := od_add_avg_Z p1 p0 in
+    let    t := od_sub_avg_Z p1 p0 in
     let p1_2 := od_mul_Z p0 c0 q0 in
-    let p0_Z := od_mul_Z  t c1 q1 in
-    let p1_3 := od_sub_avg_Z
+    let p0_2 := od_mul_Z  t c1 q1 in
+    let p1_3 := od_add_Z p1_2 p0_2 in
+      (p0_2, p1_3).
 
-Definition od_rotate_pi4_kernel_sub_avg : ident * funspec :=
+Definition od_rotate_pi4_kernel_sub_avg_spec : ident * funspec :=
  DECLARE _od_rotate_pi4_kernel
   WITH p0: val, p1: val, c0: Z, q0: Z, c1: Z, q1: Z, i0: Z, i1: Z, type: Z, avg: Z
   PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint), _c0 OF tint, _q0 OF tint, _c1 OF tint, _q1 OF tint,
-        _type of tint, _avg of tint ]
+        _type OF tint, _avg OF tint ]
           PROP  (Int.min_signed >>> 17 <= i0 <= Int.max_signed >>> 17;
+                 Int.min_signed >>> 17 <= i1 <= Int.max_signed >>> 17;
                  0 <= c0 <= 65535; 0 <= q0 <= 15;
                  0 <= c1 <= 65535; 0 <= q1 <= 15;
                  type = _SUB; avg = _AVG)
@@ -148,12 +170,11 @@ Definition od_rotate_pi4_kernel_sub_avg : ident * funspec :=
                  temp _type (Vint (Int.repr type)); temp _avg (Vint (Int.repr avg)))
           SEP   (data_at Ews tint (Vint (Int.repr i0)) p0;
                  data_at Ews tint (Vint (Int.repr i1)) p1)
-  POST [ tvoid ]
-          PROP ()
+  POST [ tvoid ] EX res: Z * Z,
+          PROP (res = od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1)
           LOCAL ()
-          SEP (data_at Ews tint (Vint (Int.repr (od_mul_Z  t c1 q1))) p0;
-               data_at Ews tint (Vint (Int.repr (od_mul_Z i0 c0 q0))) p1).
-
+          SEP (data_at Ews tint (Vint (Int.repr (fst res))) p0;
+               data_at Ews tint (Vint (Int.repr (snd res))) p1).
 
 
 Definition od_fdct_2_spec : ident * funspec :=
@@ -172,7 +193,8 @@ Definition od_fdct_2_spec : ident * funspec :=
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
-    sumtwo_spec; od_add_spec; od_add_avg_spec; od_mul_spec; od_rot2_spec; od_fdct_2_spec
+    sumtwo_spec; od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
+    od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec
   ]).
 
 Lemma add_le_2: forall min max a b: Z, Zeven min ->
@@ -274,6 +296,15 @@ Proof.
   rewrite Int.signed_repr.
   auto.
   auto.
+
+  unfold od_add_avg_Z.
+  entailer!.  
+  f_equal.
+  unfold Int.shr.
+  normalize.
+  rewrite Int.signed_repr.
+  trivial.
+  trivial.
 Qed.
 
 Lemma conj_same: forall P: Prop, P -> P /\ P.
@@ -303,43 +334,44 @@ Qed.
 Lemma body_od_mul: semax_body Vprog Gprog f_od_mul od_mul_spec.
 Proof.
   start_function.
-
-  assert(ltu_q_wordsize: Int.ltu (Int.repr q) Int.iwordsize = true).
-    unfold Int.ltu.
-    rewrite zlt_true.
-    simpl.
-    trivial.
-
-    unfold Int.iwordsize.
-    unfold Int.zwordsize.
-    simpl.
-    repeat rewrite Int.unsigned_repr.
-    omega.
-    repable_signed.
-    repable_signed.
-
-  assert (pow2_q_signed: Int.min_signed <= 1 <<< q <= Int.max_signed).
-    split.
-    (**) apply Z.le_trans with (1 <<< 0).
-      simpl.
-      repable_signed.
-      apply shiftl_le; omega.
-    (**) apply Z.le_trans with (1 <<< 15).
-      apply shiftl_le; omega.
-      unfold Int.max_signed; simpl; omega.
-
-
-  forward.
-  entailer!.
-  split3.
-  rewrite ltu_q_wordsize.
-  unfold is_true. trivial.
-  rewrite ltu_q_wordsize.
-  unfold is_true. trivial.
-  admit. (*Int.min_signed <= Int.signed (Int.repr n) * Int.signed (Int.repr c) <= Int.max_signed*)
-
   admit.
-  admit.
+
+  (* assert(ltu_q_wordsize: Int.ltu (Int.repr q) Int.iwordsize = true). *)
+  (*   unfold Int.ltu. *)
+  (*   rewrite zlt_true. *)
+  (*   simpl. *)
+  (*   trivial. *)
+
+  (*   unfold Int.iwordsize. *)
+  (*   unfold Int.zwordsize. *)
+  (*   simpl. *)
+  (*   repeat rewrite Int.unsigned_repr. *)
+  (*   omega. *)
+  (*   repable_signed. *)
+  (*   repable_signed. *)
+
+  (* assert (pow2_q_signed: Int.min_signed <= 1 <<< q <= Int.max_signed). *)
+  (*   split. *)
+  (*   (**) apply Z.le_trans with (1 <<< 0). *)
+  (*     simpl. *)
+  (*     repable_signed. *)
+  (*     apply shiftl_le; omega. *)
+  (*   (**) apply Z.le_trans with (1 <<< 15). *)
+  (*     apply shiftl_le; omega. *)
+  (*     unfold Int.max_signed; simpl; omega. *)
+
+
+  (* forward. *)
+  (* entailer!. *)
+  (* split3. *)
+  (* rewrite ltu_q_wordsize. *)
+  (* unfold is_true. trivial. *)
+  (* rewrite ltu_q_wordsize. *)
+  (* unfold is_true. trivial. *)
+  (* admit. (*Int.min_signed <= Int.signed (Int.repr n) * Int.signed (Int.repr c) <= Int.max_signed*) *)
+
+  (* admit. *)
+  (* admit. *)
 
   (* entailer!. *)
   (* unfold sem_shift, sem_shift_ii. *)
@@ -412,6 +444,274 @@ Proof.
   forward_call (t, c1, q1).
   forward.
   forward.
+Qed.
+
+Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
+Proof.
+  start_function.
+  remember (od_sub_avg_Z i1 i0) as t.
+  (** After the if, t = od_sub_avg(\*p1, \*p0) **)
+  match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
+                  forward_if (PROP() (LOCALx (temp _t'1 (Vint (Int.repr t)) :: Q) (SEPx R))) end.
+  (* `type == ADD` is never true. *)
+  contradict H7.
+  rewrite H5.
+  unfold _SUB.
+  computable.
+  forward_if. (* avg ? ... *)
+  (* od_sub_avg(\*p1, \*p0) *)
+  forward.
+  forward.
+  forward_call (i1, i0).
+  (* Int.min_signed >>> 1 <= i1 <= Int.max_signed >>> 1 /\ Int.min_signed >>> 1 <= i0 <= Int.max_signed >>> 1 *)
+  unfold Z.shiftr in *. simpl in *.
+  repeat split; omega.
+  forward.
+  forward.
+  entailer!.
+  (* `avg` islways false. *)
+  contradict H8.
+  rewrite H6.
+  unfold _AVG.
+  unfold Int.zero.
+  computable.
+
+  forward. (* _t = _t'1 *)
+  forward_call (p0, p1, t, c0, q0, c1, q1, i0, i1).
+  unfold Z.shiftr in *. simpl in *.
+  rewrite Heqt.
+  (* Hide expression so that it doesn't get split *)
+  remember (-16384 <= od_sub_avg_Z i1 i0 <= 16383) as sub_bounds.
+  repeat split; try omega.
+  rewrite Heqsub_bounds.
+  replace (-16384) with (-16383 - 1) by omega.
+  apply od_sub_avg_bounded with (max := 16383); omega.
+
+  remember (od_mul_Z t c1 q1) as p0_2.
+  remember (od_mul_Z i0 c0 q0) as p1_2.
+  remember (od_add_Z p1_2 p0_2) as p1_3.
+  (** After the if, \*p1 = od_add(\*p1, \*p0) **)
+  match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
+                  forward_if (PROP() (LOCALx (temp _t'8 (Vint (Int.repr p1_3)) :: Q) (SEPx R))) end.
+  (* `type == ADD` is never true. *)
+  contradict H7.
+  rewrite H5.
+  unfold _SUB.
+  computable.
+
+  forward.
+  forward.
+  forward_call (p1_2, p0_2).
+  split.
+  rewrite Heqp1_2.
+  unfold od_mul_Z.
+
+  (* repeat rewrite Int.Zshiftl_mul_two_p in * by omega. *)
+  (* repeat rewrite Int.Zshiftr_div_two_p in * by omega. *)
+  (* Hint Unfold two_p. *)
+  (* Hint Unfold two_power_pos. *)
+  (* Hint Unfold shift_pos. *)
+  (* autounfold; destruct q0; simpl; autounfold; simpl; *)
+  (* replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
+  
+
+  (* unfold Int.min_signed in *. simpl in *. unfold Z.shiftr, two_power_pos in *. simpl in *. *)
+
+  
+  split.
+  repeat rewrite Int.Zshiftr_div_two_p.
+  apply Zdiv_le_lower_bound.
+  destruct q0.
+  compute. trivial.
+  compute. trivial.
+  (* q0 is never negative *)
+  assert (Hwrong : Z.neg p >= 0).
+  easy.
+  contradict Hwrong.
+  easy.
+  rewrite Z.mul_comm.
+
+  apply Z.le_trans with (i0 * c0)%Z.
+
+  Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                             0 <= min_b -> min_a <= 0 ->  0 <= max_a -> 
+                                                                min_a*max_b <= a*b <= max_a*max_b.
+    admit.
+  Admitted.
+  (*   intros. *)
+  (*   split. *)
+  (*   - apply Z.le_trans with (min_a*b)%Z. *)
+  (*     apply Z.mul_le_mono_nonpos_l; omega. *)
+  (*     apply Zmult_le_compat_r; omega. *)
+  (*   - apply Z.le_trans with (max_a*b)%Z. *)
+  (*     apply Z.mul_le_mono_nonneg_r; omega. *)
+  (*     apply Zmult_le_compat_l; omega. *)
+      
+  (* Qed. *)
+  Lemma pos_is_ge_1: forall p: positive, 1 <= Z.pos p.
+    intros.
+    replace 1 with (Z.succ 0) by auto.
+    apply Zlt_le_succ.
+    auto with zarith.
+  Qed.
+  Hint Immediate pos_is_ge_1.
+  Hint Unfold two_p.
+  Hint Unfold two_power_pos.
+  Hint Unfold shift_pos.
+    
+  Lemma range_twop: forall q min_q max_q: Z,  0 <= min_q ->
+                                              min_q <= q <= max_q -> two_p min_q <= two_p q <= two_p max_q.
+    intros.
+    split; apply two_p_monotone; omega.
+  Qed.
+
+  Ltac range t :=
+    let set_goal := (fun _ =>
+        let min_t  := fresh "min_t" in
+        let max_t  := fresh "max_t" in
+        evar (min_t: Z); evar (max_t: Z);
+        let min_t' := eval unfold min_t in min_t in
+        let max_t' := eval unfold max_t in max_t in
+        (* clear min_t max_t; *)
+        assert (min_t' <= t <= max_t')
+   ) in
+    match t with
+    | Z0 =>
+      idtac
+    | Zpos _ =>
+      idtac
+    | Zneg _ =>
+      idtac
+    | (?a * ?b)%Z =>
+      range a;
+      range b;
+      set_goal ();
+      only 1: (eapply range_mul_rzero; try easy)
+    | (two_p ?a) =>
+      range a;
+      set_goal ();
+      only 1: (apply range_twop; try easy)
+    | _ =>
+      match goal with
+      | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
+        idtac
+      | _ =>
+        set_goal ()
+      end
+    end.
+
+  Ltac range_left :=
+    match goal with
+    | [ |- ?x <= _ ] =>
+      range x
+    end.
+
+  Ltac range_middle :=
+    match goal with
+    | [ |- _ <= ?x <= _ ] =>
+      range x
+    end.
+
+  Ltac range_right :=
+    match goal with
+    | [ |- _ <= ?x ] =>
+      range x
+    end.
+
+  (* evar (min_t: Z). *)
+  (* evar (max_t: Z). *)
+  (* assert (min_t <= i0 * c0 <= max_t); unfold min_t, max_t. *)
+  (* eapply range_mul_rzero. *)
+
+  range_right; try easy.
+  
+  rewrite Z.mul_comm. (* put two_p q0 on the right ot use range_mul_rzero *)
+  
+
+
+  (* match goal with *)
+  (* | [ Hx: ?min_x <= i0 <= ?max_x, Hy: 0 <= c0 <= ?max_y |- _ ] => *)
+  (*   apply (range_mul_rzero i0 c0 min_x max_x max_y); easy *)
+  (* end. *)
+
+      
+
+    (* | ?x * ?y => *)
+    (*   range x; range y; *)
+    (*   match goal with *)
+    (*   | [ Hx: ?min_x <= x <= ?max_x, Hy: ?min_y <= y <= ?max_y |- _ ] => *)
+        
+  
+  
+
+  (* Variable A: Set. *)
+  (* Variable f: A -> A -> A. *)
+  (* Infix "+" := f. *)
+  (* Variable lt: A -> A -> Prop. *)
+  (* Infix "<=" := lt. *)
+  (* Inductive expr: Set := *)
+  (* | Var: A -> expr *)
+  (* | Add: expr -> expr -> expr. *)
+  (* Fixpoint edenot (e: expr): A := *)
+  (*   match e with *)
+  (*   | Var v => v *)
+  (*   | Add e1 e2 => edenot e1 + edenot e2 *)
+  (*   end. *)
+  (* Inductive range: Set := *)
+  (* | Range: expr -> expr -> range. *)
+  (* Fixpoint rdenot (r: range): Prop := *)
+  (*   match r with *)
+  (*   | Range e1 e2 =>  edenot e1 <= edenot e2 *)
+  (*   end. *)
+  (* Lemma combine_range: forall a b c: Z, x <= a -> y <= b <= y -> x + y <= a + b *)
+  (* Fixpoint combine_range *)
+  (* Fixpoint max_of (lr: list range) (e: expr) *)
+
+  Lemma max_range_le: forall n: Z, n <= max_range n
+  match goal with
+  | [ |- ?a <= ?b + ?c ] =>
+    destruct c
+  end.
+  destruct ((1 <<< q0) / two_p 1)).
+  
+  apply Z.le_trans with (i0 * c0)%Z.
+
+  match goal with
+  | [ Hx: ?low_x <= ?x <= ?hi_x, Hy: ?low_y <= ?y <= ?hi_y |- _ <= ?x * ?y ] =>
+    let min_x := fresh "min_x" in
+    remember (low_x * hi_y)%Z as min_x;
+    apply Z.le_trans with min_x
+    (* let v := constr:((low_x * 1)%Z) in *)
+    (* pose v as min_x *)
+    (* apply (Z.le_trans _ (low_x * low_y) _) *)
+  end.
+  
+  
+
+  
+  Focus 2. (* Need le_add_pos_r like lt_add_pos _r *)
+  
+  contradict H2.
+  rewrite Zlt_neg_0.
+  apply Zdiv_le_upper_bound. compute. trivial.
+  rewrite Z.mul_comm.
+  
+  rewrite Int.Zshiftl_mul_two_p.
+  simpl.
+  simpl
+  unfold Z.shiftr. simpl.
+  rewrite <- Z.add_0_r at 1.
+  apply (Z.add_le_mono (Int.min_signed >>> 1) (i0*c0) 0 (1 <<< q0 >>> 1)).
+
+  admit. (* od_mul_Z bounds *)
+
+  forward.
+  entailer!.
+  forward.
+  forward.
+  remember (od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1) as res.
+  Exists res.
+  entailer!.
 Qed.
 
 Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
