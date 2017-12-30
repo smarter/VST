@@ -32,6 +32,7 @@ Infix "<<<" := Z.shiftl (at level 51, left associativity).
 Infix ">>>" := Z.shiftr (at level 51, left associativity).
 
 Definition od_add_Z := fun (p0 p1: Z) => p0 + p1.
+Hint Unfold od_add_Z.
 
 Definition od_add_spec : ident * funspec :=
  DECLARE _od_add
@@ -47,6 +48,7 @@ Definition od_add_spec : ident * funspec :=
           SEP ().
 
 Definition od_sub_Z := fun (p0 p1: Z) => p0 - p1.
+Hint Unfold od_sub_Z.
 
 Definition od_sub_spec : ident * funspec :=
  DECLARE _od_sub
@@ -62,6 +64,7 @@ Definition od_sub_spec : ident * funspec :=
           SEP ().
 
 Definition od_add_avg_Z := fun (p0 p1: Z) => (od_add_Z p0 p1) >>> 1.
+Hint Unfold od_add_avg_Z.
 
 Definition od_add_avg_spec : ident * funspec :=
  DECLARE _od_add_avg
@@ -77,6 +80,7 @@ Definition od_add_avg_spec : ident * funspec :=
           SEP ().
 
 Definition od_sub_avg_Z := fun (p0 p1: Z) => (od_sub_Z p0 p1) >>> 1.
+Hint Unfold od_sub_avg_Z.
 
 Lemma od_sub_avg_bounded : forall p0 p1 max: Z, max > 0 -> -max-1 <= p0 <= max -> -max-1 <= p1 <= max ->
                                                     -max-1 <= od_sub_avg_Z p0 p1 <= max.
@@ -111,13 +115,17 @@ Definition od_sub_avg_spec : ident * funspec :=
           LOCAL (temp ret_temp (Vint (Int.repr (od_sub_avg_Z p0 p1))))
           SEP ().
 
-Definition od_mul_Z := fun (n c q: Z) => ((n*c + ((1 <<< q) >>> 1)) >>> q).
+Definition od_shr_round_Z := fun (x shift: Z) => (x + ((1 <<< shift) >>> 1)) >>> shift.
+Hint Unfold od_shr_round_Z.
+Definition od_mul_Z := fun (n c q: Z) => od_shr_round_Z (n*c) q.
+Hint Unfold od_mul_Z.
 
 Definition od_mul_spec : ident * funspec :=
  DECLARE _od_mul
   WITH n: Z, c: Z, q: Z
   PRE [ _n OF tint, _c OF tint, _q OF tint ]
-          PROP  (Int.min_signed >>> 17 <= n <= Int.max_signed >>> 17; 0 <= c <= 65535; 0 <= q <= 15)
+          PROP  (Int.min_signed >>> 17 <= n <= Int.max_signed >>> 17; 0 <= c <= 65535; 0 <= q <= 15;
+                 1 <<< q < c)
           LOCAL (temp _n (Vint (Int.repr n)); temp _c (Vint (Int.repr c)); temp _q (Vint (Int.repr q)))
           SEP   ()
   POST [ tint ]
@@ -130,7 +138,9 @@ Definition od_rot2_spec : ident * funspec :=
   WITH p0: val, p1: val, t: Z, c0: Z, q0: Z, c1: Z, q1: Z, i0: Z, i1: Z
   PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint), _t OF tint, _c0 OF tint, _q0 OF tint, _c1 OF tint, _q1 OF tint ]
           PROP  (Int.min_signed >>> 17 <= i0 <= Int.max_signed >>> 17; 0 <= c0 <= 65535; 0 <= q0 <= 15;
-                 Int.min_signed >>> 17 <=  t <= Int.max_signed >>> 17; 0 <= c1 <= 65535; 0 <= q1 <= 15)
+                 1 <<< q0 < c0;
+                 Int.min_signed >>> 17 <=  t <= Int.max_signed >>> 17; 0 <= c1 <= 65535; 0 <= q1 <= 15;
+                 1 <<< q1 < c1)
           LOCAL (temp _p0 p0; temp _p1 p1;
                  temp  _t (Vint (Int.repr  t));
                  temp _c0 (Vint (Int.repr c0)); temp _q0 (Vint (Int.repr q0));
@@ -144,7 +154,9 @@ Definition od_rot2_spec : ident * funspec :=
                data_at Ews tint (Vint (Int.repr (od_mul_Z i0 c0 q0))) p1).
 
 Definition _SUB : Z := 1.
+Hint Unfold _SUB.
 Definition _AVG : Z := 1.
+Hint Unfold _AVG.
 
 Definition od_rotate_pi4_kernel_sub_avg_Z :=
   fun (p0 p1 c0 q0 c1 q1: Z) =>
@@ -152,7 +164,8 @@ Definition od_rotate_pi4_kernel_sub_avg_Z :=
     let p1_2 := od_mul_Z p0 c0 q0 in
     let p0_2 := od_mul_Z  t c1 q1 in
     let p1_3 := od_add_Z p1_2 p0_2 in
-      (p0_2, p1_3).
+    (p0_2, p1_3).
+Hint Unfold od_rotate_pi4_kernel_sub_avg_Z.
 
 Definition od_rotate_pi4_kernel_sub_avg_spec : ident * funspec :=
  DECLARE _od_rotate_pi4_kernel
@@ -161,8 +174,8 @@ Definition od_rotate_pi4_kernel_sub_avg_spec : ident * funspec :=
         _type OF tint, _avg OF tint ]
           PROP  (Int.min_signed >>> 17 <= i0 <= Int.max_signed >>> 17;
                  Int.min_signed >>> 17 <= i1 <= Int.max_signed >>> 17;
-                 0 <= c0 <= 65535; 0 <= q0 <= 15;
-                 0 <= c1 <= 65535; 0 <= q1 <= 15;
+                 0 <= c0 <= 65535; 0 <= q0 <= 15; 1 <<< q0 < c0;
+                 0 <= c1 <= 65535; 0 <= q1 <= 15; 1 <<< q1 < c1;
                  type = _SUB; avg = _AVG)
           LOCAL (temp _p0 p0; temp _p1 p1;
                  temp   _c0 (Vint (Int.repr   c0)); temp  _q0 (Vint (Int.repr  q0));
@@ -454,8 +467,8 @@ Proof.
   match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
                   forward_if (PROP() (LOCALx (temp _t'1 (Vint (Int.repr t)) :: Q) (SEPx R))) end.
   (* `type == ADD` is never true. *)
-  contradict H7.
-  rewrite H5.
+  contradict H9.
+  rewrite H7.
   unfold _SUB.
   computable.
   forward_if. (* avg ? ... *)
@@ -470,8 +483,8 @@ Proof.
   forward.
   entailer!.
   (* `avg` islways false. *)
-  contradict H8.
-  rewrite H6.
+  contradict H10.
+  rewrite H8.
   unfold _AVG.
   unfold Int.zero.
   computable.
@@ -494,8 +507,8 @@ Proof.
   match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
                   forward_if (PROP() (LOCALx (temp _t'8 (Vint (Int.repr p1_3)) :: Q) (SEPx R))) end.
   (* `type == ADD` is never true. *)
-  contradict H7.
-  rewrite H5.
+  contradict H9.
+  rewrite H7.
   unfold _SUB.
   computable.
 
@@ -506,63 +519,168 @@ Proof.
   rewrite Heqp1_2.
   unfold od_mul_Z.
 
-  (* repeat rewrite Int.Zshiftl_mul_two_p in * by omega. *)
-  (* repeat rewrite Int.Zshiftr_div_two_p in * by omega. *)
+  (* Not actually needed, peano_ind was used *)
+  Lemma pos_succ_dec : forall x: positive, {x = 1%positive} + {exists y: positive, x = Pos.succ y}.
+    intros.
+    destruct x.
+    right.
+    rewrite Pos.xI_succ_xO.
+    eauto.
+    right.
+    rewrite <- Pos.succ_pred_double.
+    eauto.
+    auto.
+  Qed.
+
+  Lemma iter_le_pos: forall f x p, (forall q, q > 0 -> q <= f q) -> x > 0 -> x <= Pos.iter f x p.
+    intros.
+    elim p using Pos.peano_ind.
+    - eauto.
+    - intros.
+      rewrite Pos.iter_succ.
+      apply Z.le_trans with (Pos.iter f x p0); trivial.
+      apply H.
+      omega.
+  Qed.
+  Lemma iter_le_neg: forall f x p, (forall q, q < 0 -> f q <= q) -> x < 0 -> Pos.iter f x p <= x.
+    intros.
+    elim p using Pos.peano_ind.
+    - eauto.
+    - intros.
+      rewrite Pos.iter_succ.
+      apply Z.le_trans with (Pos.iter f x p0); trivial.
+      apply H.
+      omega.
+  Qed.
+
+  Lemma iter_le_neg2: forall f x p, (forall q, q < 0 -> f q <= q) -> x < 0 -> Pos.iter f x p <= x.
+    intros.
+    elim p using Pos.peano_ind.
+    - eauto.
+    - intros.
+      rewrite Pos.iter_succ.
+      apply Z.le_trans with (Pos.iter f x p0); trivial.
+      apply H.
+      omega.
+  Qed.
+
+  Lemma iter_le_neg3: forall f x1 x2 p, (forall q, q < 0 -> f q <= q) ->
+                                        (forall q1 q2, q2 < 0 -> q1 <= q2 -> f q1 <= f q2) ->
+                              x2 < 0 -> x1 <= x2 -> Pos.iter f x1 p <= Pos.iter f x2 p.
+    intros.
+    induction p using Pos.peano_ind.
+    simpl. auto.
+    repeat rewrite Pos.iter_succ.
+    apply H0.
+    induction p using Pos.peano_ind.
+    simpl.
+    apply Z.le_lt_trans with x2; auto.
+    rewrite Pos.iter_succ.
+
+    assert (Hneg : Pos.iter f x2 p < 0).
+    apply Z.le_lt_trans with x2; try auto.
+    apply iter_le_neg2; auto.
+
+    
+    apply Z.le_lt_trans with (Pos.iter f x2 p).
+    apply H.
+
+    apply Hneg.
+    apply Hneg.
+    auto.
+  Qed.
+
+  Lemma iter_le_neg4: forall f x p1 p2, (forall q, q < 0 -> f q <= q) ->
+                                        (forall q1 q2, q2 < 0 -> q1 <= q2 -> f q1 <= f q2) ->
+                                        (p1 <= p2)%positive ->
+                                        x < 0 -> Pos.iter f x p2 <= Pos.iter f x p1.
+    intros.
+    (* elim p1 using Pos.peano_ind. *)
+    (* elim p2 using Pos.peano_ind. *)
+    (* omega. *)
+    (* intros. *)
+    (* rewrite Pos.iter_succ. *)
+    (* apply Z.le_trans with (Pos.iter f x p). *)
+    (* apply H. *)
+    (* apply Z.le_lt_trans with x. *)
+    (* unfold Pos.iter in H2 at 2. *)
+    (* apply Z.le_trans with (f x); auto. *)
+    (* auto. *)
+    (* auto. *)
+    (* intros. *)
+    (* rewrite Pos.iter_succ. *)
+    case (eq_dec p1 p2); intros.
+    - rewrite e.
+      omega.
+    - rewrite <- (Pplus_minus p2 p1).
+      + rewrite Pos.iter_add.
+        apply iter_le_neg3; auto.
+        apply iter_le_neg2; auto.
+      + unfold Pos.gt.
+        unfold Pos.le in H1.
+        autounfold in n.
+        rewrite <- Pos.compare_eq_iff in n.
+        rewrite Pos.compare_antisym.
+        destruct (p1 ?= p2)%positive. contradiction. auto. contradiction.
+  Qed.
+
+  Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< q) <= (m <<< p).
+    intros.
+    unfold Z.shiftl.
+    destruct p, q; try easy.
+    auto with zarith.
+    apply Pos.iter_invariant; intros; omega.
+    apply Pos.iter_invariant.
+    intros.
+    apply Z.le_trans with x.
+    omega.
+    apply iter_le_neg; intros; omega.
+    
+    
+    destruct p. 
+    rewrite Pos.iter_succ
+    repeat rewrite Z.shiftl_div_pow2
+    repeat rewrite Int.Zshiftl_div_two_p; try omega.
+    apply Z.mul_le_mono_pos_l.
+    omega.
+    apply two_p_monotone.
+    omega.
+  Qed.
+
+  Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + 1 <<< max_q < 0 ->
+    min_q <= q <= max_q ->
+    od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
+    intros.
+    split.
+    autounfold.
+    apply Z.le_trans with (x + (1 <<< min_q >>> 1) >>> q).
+    
+    
+
+  repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
+  repeat rewrite Int.Zshiftr_div_two_p in * by omega.
   (* Hint Unfold two_p. *)
   (* Hint Unfold two_power_pos. *)
   (* Hint Unfold shift_pos. *)
-  (* autounfold; destruct q0; simpl; autounfold; simpl; *)
-  (* replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
+  destruct q0; replace (two_p 1) with 2 by auto; simpl;
+    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
+
+  (* autounfold; destruct q0; *)
+  (*   replace (two_p 1) with 2 by auto; *)
+  (*   simpl; autounfold; simpl; *)
+  (*     replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
   
-
-  (* unfold Int.min_signed in *. simpl in *. unfold Z.shiftr, two_power_pos in *. simpl in *. *)
-
-  
-  split.
-  repeat rewrite Int.Zshiftr_div_two_p.
-  apply Zdiv_le_lower_bound.
-  destruct q0.
-  compute. trivial.
-  compute. trivial.
-  (* q0 is never negative *)
-  assert (Hwrong : Z.neg p >= 0).
-  easy.
-  contradict Hwrong.
-  easy.
-  rewrite Z.mul_comm.
-
-  apply Z.le_trans with (i0 * c0)%Z.
-
   Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
                                                              0 <= min_b -> min_a <= 0 ->  0 <= max_a -> 
                                                                 min_a*max_b <= a*b <= max_a*max_b.
-    admit.
-  Admitted.
-  (*   intros. *)
-  (*   split. *)
-  (*   - apply Z.le_trans with (min_a*b)%Z. *)
-  (*     apply Z.mul_le_mono_nonpos_l; omega. *)
-  (*     apply Zmult_le_compat_r; omega. *)
-  (*   - apply Z.le_trans with (max_a*b)%Z. *)
-  (*     apply Z.mul_le_mono_nonneg_r; omega. *)
-  (*     apply Zmult_le_compat_l; omega. *)
-      
-  (* Qed. *)
-  Lemma pos_is_ge_1: forall p: positive, 1 <= Z.pos p.
     intros.
-    replace 1 with (Z.succ 0) by auto.
-    apply Zlt_le_succ.
-    auto with zarith.
-  Qed.
-  Hint Immediate pos_is_ge_1.
-  Hint Unfold two_p.
-  Hint Unfold two_power_pos.
-  Hint Unfold shift_pos.
-    
-  Lemma range_twop: forall q min_q max_q: Z,  0 <= min_q ->
-                                              min_q <= q <= max_q -> two_p min_q <= two_p q <= two_p max_q.
-    intros.
-    split; apply two_p_monotone; omega.
+    split.
+    - apply Z.le_trans with (min_a*b)%Z.
+      apply Z.mul_le_mono_nonpos_l; omega.
+      apply Zmult_le_compat_r; omega.
+    - apply Z.le_trans with (max_a*b)%Z.
+      apply Z.mul_le_mono_nonneg_r; omega.
+      apply Zmult_le_compat_l; omega.      
   Qed.
 
   Ltac range t :=
@@ -587,10 +705,6 @@ Proof.
       range b;
       set_goal ();
       only 1: (eapply range_mul_rzero; try easy)
-    | (two_p ?a) =>
-      range a;
-      set_goal ();
-      only 1: (apply range_twop; try easy)
     | _ =>
       match goal with
       | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
@@ -617,6 +731,41 @@ Proof.
     | [ |- _ <= ?x ] =>
       range x
     end.
+
+  range_middle.
+  destruct H8.
+  split.
+  apply (fun x => Z.le_trans _ _ _ x H8).
+  easy.
+  apply (Z.le_trans _ _ _ H9).
+  easy.
+  split.
+  Definition 
+  Lemma 0 <= Z.pos p <= pmax -> (a + (two_power_pos p) / 2) / two_power_pos p
+  (* assert(forall p, (Z.pos (shift_pos (Pos.succ p) 1) / 2) = (Z.pos (shift_pos p 1))). *)
+  (* intro. unfold shift_pos. rewrite Pos.iter_succ. *)
+  (* assert(forall p: positive, (Z.pos (xO p))/2 = Z.pos p). *)
+  (* intro. rewrite Pos2Z.pos_xO. rewrite Z.mul_comm. apply Z.div_mul. omega. *)
+  (* apply H8. *)
+  (* rewrite H8. *)
+
+  (* unfold Int.min_signed in *. simpl in *. unfold Z.shiftr, two_power_pos in *. simpl in *. *)
+
+  
+  split.
+  repeat rewrite Int.Zshiftr_div_two_p.
+  apply Zdiv_le_lower_bound.
+  destruct q0.
+  compute. trivial.
+  compute. trivial.
+  (* q0 is never negative *)
+  assert (Hwrong : Z.neg p >= 0).
+  easy.
+  contradict Hwrong.
+  easy.
+  rewrite Z.mul_comm.
+
+  apply Z.le_trans with (i0 * c0)%Z.
 
   (* evar (min_t: Z). *)
   (* evar (max_t: Z). *)
