@@ -553,15 +553,17 @@ Proof.
       omega.
   Qed.
 
-  Lemma iter_le_neg2: forall f x p, (forall q, q < 0 -> f q <= q) -> x < 0 -> Pos.iter f x p <= x.
+  Lemma iter_le_neg2: forall f x p, (forall q, q <= 0 -> f q <= 0) ->
+                                    (forall q, q <= 0 -> q <= f q) ->
+                                    x <= 0 -> x <= Pos.iter f x p.
     intros.
-    elim p using Pos.peano_ind.
+    induction p using Pos.peano_ind.
     - eauto.
-    - intros.
-      rewrite Pos.iter_succ.
-      apply Z.le_trans with (Pos.iter f x p0); trivial.
-      apply H.
+    - rewrite Pos.iter_succ.
+      apply Z.le_trans with (Pos.iter f x p).
       omega.
+      apply H0.
+      apply Pos.iter_invariant; auto.
   Qed.
 
   Lemma iter_le_neg3: forall f x1 x2 p, (forall q, q < 0 -> f q <= q) ->
@@ -579,7 +581,7 @@ Proof.
 
     assert (Hneg : Pos.iter f x2 p < 0).
     apply Z.le_lt_trans with x2; try auto.
-    apply iter_le_neg2; auto.
+    apply iter_le_neg; auto.
 
     
     apply Z.le_lt_trans with (Pos.iter f x2 p).
@@ -590,62 +592,109 @@ Proof.
     auto.
   Qed.
 
+  Lemma iter_le_neg2_3: forall f x1 x2 p, (forall q, q <= 0 -> f q <= 0) ->
+                                          (forall q, q <= 0 -> q <= f q) ->
+                                          (forall q1 q2, q2 < 0 -> q1 <= q2 -> f q1 <= f q2) ->
+                                          x2 <= 0 -> x1 <= x2 -> Pos.iter f x1 p <= Pos.iter f x2 p.
+    intros.
+    admit.
+  Admitted.
+
   Lemma iter_le_neg4: forall f x p1 p2, (forall q, q < 0 -> f q <= q) ->
                                         (forall q1 q2, q2 < 0 -> q1 <= q2 -> f q1 <= f q2) ->
                                         (p1 <= p2)%positive ->
                                         x < 0 -> Pos.iter f x p2 <= Pos.iter f x p1.
     intros.
-    (* elim p1 using Pos.peano_ind. *)
-    (* elim p2 using Pos.peano_ind. *)
-    (* omega. *)
-    (* intros. *)
-    (* rewrite Pos.iter_succ. *)
-    (* apply Z.le_trans with (Pos.iter f x p). *)
-    (* apply H. *)
-    (* apply Z.le_lt_trans with x. *)
-    (* unfold Pos.iter in H2 at 2. *)
-    (* apply Z.le_trans with (f x); auto. *)
-    (* auto. *)
-    (* auto. *)
-    (* intros. *)
-    (* rewrite Pos.iter_succ. *)
     case (eq_dec p1 p2); intros.
     - rewrite e.
       omega.
     - rewrite <- (Pplus_minus p2 p1).
       + rewrite Pos.iter_add.
         apply iter_le_neg3; auto.
-        apply iter_le_neg2; auto.
+        apply iter_le_neg; auto.
       + unfold Pos.gt.
         unfold Pos.le in H1.
         autounfold in n.
         rewrite <- Pos.compare_eq_iff in n.
         rewrite Pos.compare_antisym.
-        destruct (p1 ?= p2)%positive. contradiction. auto. contradiction.
+        now destruct (p1 ?= p2)%positive.
   Qed.
 
-  Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< q) <= (m <<< p).
+  Lemma iter_le_neg2_4: forall f x p1 p2, (forall q, q <= 0 -> f q <= 0) ->
+                                          (forall q, q <= 0 -> q <= f q) ->
+                                          (forall q1 q2, q2 < 0 -> q1 <= q2 -> f q1 <= f q2) ->
+                                          (p1 <= p2)%positive ->
+                                          x <= 0 -> Pos.iter f x p1 <= Pos.iter f x p2.
+    intros.
+    case (eq_dec p1 p2); intros.
+    - rewrite e.
+      omega.
+    - rewrite <- (Pplus_minus p2 p1).
+      + rewrite Pos.iter_add.
+        apply iter_le_neg2_3; auto. (* TODO *)
+        admit.
+        
+        apply iter_le_neg2; auto.
+      + admit.
+  Admitted.
+
+  Lemma shiftl_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< q) <= (m <<< p).
     intros.
     unfold Z.shiftl.
     destruct p, q; try easy.
-    auto with zarith.
-    apply Pos.iter_invariant; intros; omega.
-    apply Pos.iter_invariant.
+    apply iter_le_neg. intros. omega.
+    trivial.
+    apply iter_le_neg4; intros.
+    omega.
+    omega.
+    trivial.
+    trivial.
+  Qed.
+
+  Lemma div2_le: forall m, m <= 0 -> m <= Z.div2 m.
     intros.
-    apply Z.le_trans with x.
+    rewrite Z.div2_div.
+    apply Z.div_le_lower_bound; omega.
+  Qed.
+
+  Lemma div2_le_zero: forall m, m <= 0 -> Z.div2 m <= 0.
+    intros.
+    destruct (Z_le_lt_eq_dec _ _ H).
+    rewrite <- (Z.div2_neg m) in l.
     omega.
-    apply iter_le_neg; intros; omega.
-    
-    
-    destruct p. 
-    rewrite Pos.iter_succ
-    repeat rewrite Z.shiftl_div_pow2
-    repeat rewrite Int.Zshiftl_div_two_p; try omega.
-    apply Z.mul_le_mono_pos_l.
-    omega.
-    apply two_p_monotone.
+    rewrite e.
+    simpl.
     omega.
   Qed.
+
+  Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m >>> p) <= (m >>> q).
+    intros.
+    unfold Z.shiftr.
+    destruct p, q; try easy.
+    simpl.
+    apply iter_le_neg2; intros.
+    - apply div2_le_zero; omega.
+    - apply div2_le; omega.
+    - omega.
+    - simpl.
+      apply iter_le_neg2_4; intros.
+      apply div2_le_zero; omega.
+      apply div2_le; omega.
+      repeat rewrite Z.div2_div.
+      apply Z.div_le_mono; omega.
+      auto.
+      omega.
+  Qed.
+
+  Lemma div_le_compat_l_neg: forall p q r, p<=0 -> 0<q<=r -> p/q <= p/r.
+  Proof.
+  Abort.
+
+  Lemma shiftr_neg_le_again: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m >>> p) <= (m >>> q).
+    intros.
+    repeat rewrite Z.shiftr_div_pow2; try omega.
+    (* apply Z.div_le_compat_l_neg *)
+  Abort.
 
   Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + 1 <<< max_q < 0 ->
     min_q <= q <= max_q ->
@@ -654,6 +703,20 @@ Proof.
     split.
     autounfold.
     apply Z.le_trans with (x + (1 <<< min_q >>> 1) >>> q).
+    apply shiftl_neg_le
+    
+    apply Z.le_lt_trans with (x + (1 <<< max_q)).
+    apply Zplus_le_compat_l.
+    destruct min_q.
+    simpl.
+    rewrite Int.Zshiftr_div_two_p; replace (two_p 1) with 2 by auto; simpl; replace (1/2) with 0 by auto.
+    apply Z.shiftl_nonneg; omega.
+    omega.
+    simpl.
+    
+    unfold Z.shiftr.
+    rewrite Z.shiftl_shiftl.
+    apply shiftl_le. omega. omega.
     
     
 
