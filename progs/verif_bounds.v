@@ -325,7 +325,7 @@ Lemma conj_same: forall P: Prop, P -> P /\ P.
   split; trivial.
 Qed.
 
-Lemma shiftl_le: forall m p q, m > 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< p) <= (m <<< q).
+Lemma shiftl_mono_r: forall m p q, m > 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< p) <= (m <<< q).
   intros.
   repeat rewrite Int.Zshiftl_mul_two_p; try omega.
   apply Z.mul_le_mono_pos_l.
@@ -368,9 +368,9 @@ Proof.
   (*   (**) apply Z.le_trans with (1 <<< 0). *)
   (*     simpl. *)
   (*     repable_signed. *)
-  (*     apply shiftl_le; omega. *)
+  (*     apply shiftl_mono_r; omega. *)
   (*   (**) apply Z.le_trans with (1 <<< 15). *)
-  (*     apply shiftl_le; omega. *)
+  (*     apply shiftl_mono_r; omega. *)
   (*     unfold Int.max_signed; simpl; omega. *)
 
 
@@ -423,7 +423,7 @@ Proof.
   (*   omega. *)
   (*   apply Z.le_trans with (1 <<< 0). *)
   (*   simpl. omega. *)
-  (*   apply shiftl_le; omega. *)
+  (*   apply shiftl_mono_r; omega. *)
   (*   omega. *)
   (*   omega. *)
   (* (**) apply Z.le_trans with ((1 <<< 15) >>> 1). *)
@@ -432,7 +432,7 @@ Proof.
   (*   simpl. *)
   (*   unfold Z.pow_pos. simpl. *)
   (*   omega. *)
-  (*   apply shiftl_le; omega. *)
+  (*   apply shiftl_mono_r; omega. *)
   (*   omega. *)
   (*   omega. *)
   (*   unfold Int.max_signed, Z.shiftr; simpl; omega. *)
@@ -543,6 +543,57 @@ Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m >>>
   apply Z.pow_le_mono_r; omega.
 Qed.
 
+Lemma shiftl_mono_l: forall a b q, 0 <= q -> a <= b -> a <<< q <= b <<< q.
+  intros.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  apply Z.mul_le_mono_pos_r; try omega.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+
+Lemma shiftr_mono_l: forall a b q, 0 <= q -> a <= b -> a >>> q <= b >>> q.
+  intros.
+  repeat rewrite Z.shiftr_div_pow2; try omega.
+  apply Z.div_le_mono.
+  apply Z.pow_pos_nonneg; omega.
+  trivial.
+Qed.
+
+Lemma shr_round_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
+                                      od_shr_round_Z x a <= od_shr_round_Z x b.
+  intros.
+  autounfold.
+  apply Z.le_trans with (x + (1 <<< a >>> 1) >>> b).
+  apply shiftr_neg_le; try omega.
+  apply Z.le_lt_trans with (x + (1 <<< b)); try auto.
+  apply Z.add_le_mono_l.
+  apply Z.le_trans with (1 <<< a).
+  rewrite <- Z.div2_spec.
+  rewrite Z.div2_div.
+  apply Z.div_le_upper_bound; try omega.
+  rewrite <- Z.mul_1_l at 1.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  apply Z.shiftl_nonneg; omega.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  repeat rewrite Z.mul_1_l.
+  apply Z.pow_le_mono_r; omega.
+  apply shiftr_mono_l; try omega.
+  apply Z.add_le_mono_l.
+  apply shiftr_mono_l; try omega.
+  apply shiftl_mono_r; omega.
+Qed.
+
+Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + (1 <<< max_q) < 0 ->
+                                                   min_q <= q <= max_q ->
+                                                   od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
+  intros.
+  split.
+  - apply shr_round_mono_r; try omega.
+    apply Z.le_lt_trans with (x + (1 <<< max_q)); try omega.
+    apply Z.add_le_mono_l.
+    apply shiftl_mono_r; omega.
+  - apply shr_round_mono_r; omega.
+Qed.
+
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
 Proof.
   start_function.
@@ -602,29 +653,6 @@ Proof.
   split.
   rewrite Heqp1_2.
   unfold od_mul_Z.
-
-  Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + 1 <<< max_q < 0 ->
-    min_q <= q <= max_q ->
-    od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
-    intros.
-    split.
-    autounfold.
-    apply Z.le_trans with (x + (1 <<< min_q >>> 1) >>> q).
-    apply shiftl_neg_le (*TODO*)
-
-    apply Z.le_lt_trans with (x + (1 <<< max_q)).
-    apply Zplus_le_compat_l.
-    destruct min_q.
-    simpl.
-    rewrite Int.Zshiftr_div_two_p; replace (two_p 1) with 2 by auto; simpl; replace (1/2) with 0 by auto.
-    apply Z.shiftl_nonneg; omega.
-    omega.
-    simpl.
-
-    unfold Z.shiftr.
-    rewrite Z.shiftl_shiftl.
-    apply shiftl_le. omega. omega.
-
 
 
   repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
