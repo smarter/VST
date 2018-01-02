@@ -558,8 +558,8 @@ Lemma shiftr_mono_l: forall a b q, 0 <= q -> a <= b -> a >>> q <= b >>> q.
   trivial.
 Qed.
 
-Lemma shr_round_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
-                                      od_shr_round_Z x a <= od_shr_round_Z x b.
+Lemma shr_round_neg_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
+                                          od_shr_round_Z x a <= od_shr_round_Z x b.
   intros.
   autounfold.
   apply Z.le_trans with (x + (1 <<< a >>> 1) >>> b).
@@ -582,17 +582,48 @@ Lemma shr_round_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
   apply shiftl_mono_r; omega.
 Qed.
 
+Lemma shr_round_mono_l: forall x y a, x <= y -> a >= 0 ->
+                                      od_shr_round_Z x a <= od_shr_round_Z y a.
+  intros.
+  autounfold.
+  apply shiftr_mono_l; omega.
+Qed.
+
+(* TOOO: only needs _ <= _, not _ <= _ <= _ *)
 Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + (1 <<< max_q) < 0 ->
                                                    min_q <= q <= max_q ->
                                                    od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
   intros.
-  split.
-  - apply shr_round_mono_r; try omega.
-    apply Z.le_lt_trans with (x + (1 <<< max_q)); try omega.
-    apply Z.add_le_mono_l.
-    apply shiftl_mono_r; omega.
-  - apply shr_round_mono_r; omega.
+  split; apply shr_round_neg_mono_r; try omega.
+  apply Z.le_lt_trans with (x + (1 <<< max_q)); try omega.
+  apply Z.add_le_mono_l.
+  apply shiftl_mono_r; omega.
 Qed.
+
+Lemma shr_round_pos_le: forall x a b: Z, x >= 0 -> 0 <= a <= b ->
+                                         od_shr_round_Z x b <= od_shr_round_Z x a.
+  intros.
+  autounfold.
+  destruct H0.
+(*Z_div_plus: forall a b c : Z, c > 0 -> (a + b * c) / c = a / c + b
+Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c * a / b
+ *)
+  repeat rewrite Z.shiftr_div_pow2; try omega.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  repeat rewrite Z.mul_1_l.
+  repeat rewrite Z.pow_1_r.
+  rewrite (Z.div_mod x (2^b)) at 1.
+  rewrite Z.div_plus.
+  
+
+  (* destruct a <= b
+     if a < b then ... <= (x >>> (b-1)) <= x >>> a <= ...
+   *)
+  destruct (Z_le_lt_eq_dec _ _ H1).
+  apply Z.le_trans with (x >>> (b-1)).
+  
+  repeat rewrite Z.shiftr_div_pow2 by omega.
+  
 
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
 Proof.
@@ -650,23 +681,6 @@ Proof.
   forward.
   forward.
   forward_call (p1_2, p0_2).
-  split.
-  rewrite Heqp1_2.
-  unfold od_mul_Z.
-
-
-  repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
-  repeat rewrite Int.Zshiftr_div_two_p in * by omega.
-  (* Hint Unfold two_p. *)
-  (* Hint Unfold two_power_pos. *)
-  (* Hint Unfold shift_pos. *)
-  destruct q0; replace (two_p 1) with 2 by auto; simpl;
-    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
-
-  (* autounfold; destruct q0; *)
-  (*   replace (two_p 1) with 2 by auto; *)
-  (*   simpl; autounfold; simpl; *)
-  (*     replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
 
   Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
                                                              0 <= min_b -> min_a <= 0 ->  0 <= max_a ->
@@ -729,6 +743,42 @@ Proof.
     | [ |- _ <= ?x ] =>
       range x
     end.
+
+  range (i0*c0)%Z.
+  
+  split.
+  rewrite Heqp1_2.
+  unfold od_mul_Z.
+  
+  split.
+  apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) q0).
+  apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) 0).
+  easy.
+  apply shr_round_neg_mono_r; try omega.
+  apply Z.le_lt_trans with ((Int.min_signed >>> 17) * 65535 + (1 <<< 15)).
+  apply Z.add_le_mono_l.
+  apply shiftl_mono_r; omega.
+  easy.
+  apply shr_round_mono_l; omega.
+
+  apply Z.le_trans with (od_shr_round_Z ((Int.max_signed >>> 17) * 65535) q0).
+  apply shr_round_mono_l; omega.
+  apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) 15).
+  (*TODO*)
+  
+  repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
+  repeat rewrite Int.Zshiftr_div_two_p in * by omega.
+  (* Hint Unfold two_p. *)
+  (* Hint Unfold two_power_pos. *)
+  (* Hint Unfold shift_pos. *)
+  destruct q0; replace (two_p 1) with 2 by auto; simpl;
+    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
+
+  (* autounfold; destruct q0; *)
+  (*   replace (two_p 1) with 2 by auto; *)
+  (*   simpl; autounfold; simpl; *)
+  (*     replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
+
 
   range_middle.
   destruct H8.
