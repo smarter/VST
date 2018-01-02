@@ -355,7 +355,7 @@ Lemma shiftl_mono_r: forall m p q, m > 0 -> p <= q -> (m <<< p) <= (m <<< q).
   apply Z.mul_le_mono_nonneg_r; try omega.
   replace 1 with (Z.succ 0) by omega.
   apply Zlt_le_succ.
-  apply Z.pow_pos_nonneg; try omega; auto.  
+  apply Z.pow_pos_nonneg; try omega; auto.
 
   replace m with (m*1)%Z at 1 by omega.
   apply Z.mul_le_mono_nonneg_l; try omega.
@@ -369,15 +369,6 @@ Lemma shiftl_mono_r: forall m p q, m > 0 -> p <= q -> (m <<< p) <= (m <<< q).
   apply Z.pow_le_mono_r; try omega.
   apply Z.opp_le_mono.
   auto.
-Qed.
-
-Lemma shiftl_mono_r: forall m p q, m > 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< p) <= (m <<< q).
-  intros.
-  repeat rewrite Int.Zshiftl_mul_two_p; try omega.
-  apply Z.mul_le_mono_pos_l.
-  omega.
-  apply two_p_monotone.
-  omega.
 Qed.
 
 Lemma shr_signed: forall m n,
@@ -696,7 +687,7 @@ Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c *
       apply shiftr_pos_nonneg; try omega.
       apply shiftl_pos_nonneg; omega.
 Qed.
-  
+
 
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
 Proof.
@@ -818,11 +809,11 @@ Proof.
     end.
 
   range (i0*c0)%Z.
-  
+
   split.
   rewrite Heqp1_2.
   unfold od_mul_Z.
-  
+
   split.
   apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) q0).
   apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) 0).
@@ -838,12 +829,33 @@ Proof.
   apply shr_round_mono_l; omega.
   apply Z.le_trans with (od_shr_round_Z ((Int.max_signed >>> 17) * 65535) 0).
   apply shr_round_pos_le; try omega.
-  unfold Int.max_signed; simpl; omega.
+  simpl; omega.
   apply Z.le_trans with (1 <<< 14).
   apply shiftl_mono_r; try omega.
+  simpl; omega.
+  easy.
+
+  rewrite Heqp0_2.
+  rewrite Heqt.
+  split.
+  unfold od_mul_Z.
+  range (od_sub_avg_Z i1 (i0*c1)).
+  unfold od_sub_avg_Z.
+  unfold od_sub_Z.
 
   (*TODO*)
-  
+
+  Focus 4.
+  forward.
+  entailer!.
+
+  Focus 4.
+  forward. forward.
+  remember (od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1) as res.
+  Exists res.
+  entailer!.
+
+
   repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
   repeat rewrite Int.Zshiftr_div_two_p in * by omega.
   (* Hint Unfold two_p. *)
