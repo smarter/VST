@@ -325,6 +325,52 @@ Lemma conj_same: forall P: Prop, P -> P /\ P.
   split; trivial.
 Qed.
 
+Lemma shiftl_mono_r: forall m p q, m > 0 -> p <= q -> (m <<< p) <= (m <<< q).
+  intros.
+  destruct p, q;
+    repeat rewrite (Z.shiftl_mul_pow2 _ 0);
+    repeat rewrite (Z.shiftl_mul_pow2 _ (Z.pos _));
+    repeat rewrite (Z.shiftl_div_pow2 _ (Z.neg _));
+    repeat rewrite Pos2Z.opp_neg;
+    try easy.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  apply Z.pow_le_mono_r; omega.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  apply Z.pow_le_mono_r; omega.
+
+  apply Z.le_trans with m.
+  apply Z.div_le_upper_bound.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  replace m with (1*m)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  simpl; omega.
+
+  apply Z.le_trans with m.
+  apply Z.div_le_upper_bound.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  replace m with (1*m)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.  
+
+  replace m with (m*1)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.
+
+  apply Z.div_le_compat_l; try omega.
+  split.
+  apply Z.pow_pos_nonneg; try omega; auto with zarith.
+  apply Z.pow_le_mono_r; try omega.
+  apply Z.opp_le_mono.
+  auto.
+Qed.
+
 Lemma shiftl_mono_r: forall m p q, m > 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< p) <= (m <<< q).
   intros.
   repeat rewrite Int.Zshiftl_mul_two_p; try omega.
@@ -600,7 +646,8 @@ Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + (1 <<< max_
   apply shiftl_mono_r; omega.
 Qed.
 
-Lemma shr_round_pos_le: forall x a b: Z, x >= 0 -> 0 <= a <= b ->
+Lemma shr_round_pos_le: forall x a b: Z, 0 <= x -> 0 <= a <= b ->
+                                         1 <<< (b - 1) <= x ->
                                          od_shr_round_Z x b <= od_shr_round_Z x a.
   intros.
   autounfold.
@@ -608,21 +655,47 @@ Lemma shr_round_pos_le: forall x a b: Z, x >= 0 -> 0 <= a <= b ->
 (*Z_div_plus: forall a b c : Z, c > 0 -> (a + b * c) / c = a / c + b
 Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c * a / b
  *)
-  repeat rewrite Z.shiftr_div_pow2; try omega.
-  repeat rewrite Z.shiftl_mul_pow2; try omega.
-  repeat rewrite Z.mul_1_l.
-  repeat rewrite Z.pow_1_r.
-  rewrite (Z.div_mod x (2^b)) at 1.
-  rewrite Z.div_plus.
-  
 
-  (* destruct a <= b
-     if a < b then ... <= (x >>> (b-1)) <= x >>> a <= ...
-   *)
-  destruct (Z_le_lt_eq_dec _ _ H1).
-  apply Z.le_trans with (x >>> (b-1)).
-  
-  repeat rewrite Z.shiftr_div_pow2 by omega.
+  destruct (Z_le_lt_eq_dec _ _ H2).
+  Focus 2. repeat rewrite <- e; reflexivity.
+
+  apply Z.le_trans with ((2*x) >>> b).
+  - apply shiftr_mono_l; try omega.
+    rewrite Z.shiftr_shiftl_l; omega.
+  - apply Z.le_trans with (x >>> a).
+    + repeat rewrite Z.shiftr_div_pow2; try omega.
+      replace (2^b) with (2*(2^(b-1)))%Z.
+      rewrite Z.div_mul_cancel_l; try omega.
+      apply Z.div_le_compat_l; try omega.
+      split.
+      apply Z.pow_pos_nonneg; omega.
+      apply Z.pow_le_mono_r; omega.
+      assert (0 < 2^(b-1)) by (apply Z.pow_pos_nonneg; omega).
+      omega.
+
+      rewrite <- Z.pow_succ_r; try omega.
+      rewrite <- Z.add_1_r.
+      replace (b - 1 + 1) with b by omega.
+      reflexivity.
+    + apply shiftr_mono_l; try omega.
+      replace x with (x+0) at 1 by (apply Z.add_0_r).
+      apply Z.add_le_mono_l.
+      Lemma shiftr_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a >>> b.
+        intros.
+        rewrite Z.shiftr_div_pow2; try omega.
+        apply Z.div_pos; try omega.
+        apply Z.pow_pos_nonneg; omega.
+      Qed.
+      Lemma shiftl_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a <<< b.
+        intros.
+        rewrite Z.shiftl_mul_pow2; try omega.
+        apply Z.mul_nonneg_nonneg; try omega.
+        apply Z.lt_le_incl.
+        apply Z.pow_pos_nonneg; omega.
+      Qed.
+      apply shiftr_pos_nonneg; try omega.
+      apply shiftl_pos_nonneg; omega.
+Qed.
   
 
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
@@ -763,7 +836,12 @@ Proof.
 
   apply Z.le_trans with (od_shr_round_Z ((Int.max_signed >>> 17) * 65535) q0).
   apply shr_round_mono_l; omega.
-  apply Z.le_trans with (od_shr_round_Z ((Int.min_signed >>> 17) * 65535) 15).
+  apply Z.le_trans with (od_shr_round_Z ((Int.max_signed >>> 17) * 65535) 0).
+  apply shr_round_pos_le; try omega.
+  unfold Int.max_signed; simpl; omega.
+  apply Z.le_trans with (1 <<< 14).
+  apply shiftl_mono_r; try omega.
+
   (*TODO*)
   
   repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
@@ -772,7 +850,7 @@ Proof.
   (* Hint Unfold two_power_pos. *)
   (* Hint Unfold shift_pos. *)
   destruct q0; replace (two_p 1) with 2 by auto; simpl;
-    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
+shr_round_pos_le:    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
 
   (* autounfold; destruct q0; *)
   (*   replace (two_p 1) with 2 by auto; *)
