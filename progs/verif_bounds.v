@@ -759,6 +759,22 @@ Proof.
       apply Zmult_le_compat_l; omega.
   Qed.
 
+  Lemma range_sub: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                                min_a-max_b <= a-b <= max_a-min_b.
+    intros.
+    omega.
+  Qed.
+
+  Lemma range_sub_avg: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                              od_sub_avg_Z min_a max_b <= od_sub_avg_Z a b <= od_sub_avg_Z max_a min_b.
+    intros.
+    repeat unfold od_sub_avg_Z.
+    repeat unfold od_sub_Z.
+    split; apply shiftr_mono_l; omega.
+  Qed.
+
+  (*od_mul_Z (od_sub_avg_Z i1 i0) c1 q1*)
+
   Ltac range t :=
     let set_goal := (fun _ =>
         let min_t  := fresh "min_t" in
@@ -776,6 +792,16 @@ Proof.
       idtac
     | Zneg _ =>
       idtac
+    | (?a - ?b)%Z =>
+      range a;
+      range b;
+      set_goal ();
+      only 1: (eapply range_sub; try easy)
+    | (od_sub_avg_Z ?a ?b)%Z =>
+      range a;
+      range b;
+      set_goal ();
+      only 1: (eapply range_sub_avg; try easy)
     | (?a * ?b)%Z =>
       range a;
       range b;
@@ -808,9 +834,12 @@ Proof.
       range x
     end.
 
+
   range (i0*c0)%Z.
 
   split.
+
+  (* Int.min_signed >>> 1 <= p1_2 <= Int.max_signed >>> 1 *)
   rewrite Heqp1_2.
   unfold od_mul_Z.
 
@@ -835,167 +864,37 @@ Proof.
   simpl; omega.
   easy.
 
+  (* Int.min_signed >>> 1 <= p0_2 <= Int.max_signed >>> 1 *)
   rewrite Heqp0_2.
   rewrite Heqt.
-  split.
+
   unfold od_mul_Z.
-  range (od_sub_avg_Z i1 (i0*c1)).
-  unfold od_sub_avg_Z.
-  unfold od_sub_Z.
+  range ((od_sub_avg_Z i1 i0) * c1)%Z.
+  split.
+  apply Z.le_trans with (od_shr_round_Z min_t1 q1).
+  apply Z.le_trans with (od_shr_round_Z min_t1 0).
+  easy.
+  apply shr_round_neg_mono_r; try omega.
+  apply Z.le_lt_trans with (min_t1 + (1 <<< 15)).
+  apply Z.add_le_mono_l.
+  apply shiftl_mono_r; omega.
+  easy.
+  apply shr_round_mono_l; unfold min_t1; omega.
 
-  (*TODO*)
-
-  Focus 4.
+  apply Z.le_trans with (od_shr_round_Z max_t1 q1).
+  apply shr_round_mono_l; unfold max_t1; omega.
+  apply Z.le_trans with (od_shr_round_Z max_t1 0).
+  apply shr_round_pos_le; unfold max_t1; try omega.
+  simpl; omega.
+  apply Z.le_trans with (1 <<< 14).
+  apply shiftl_mono_r; omega.
+  simpl; omega.
+  easy.
+  
   forward.
   entailer!.
 
-  Focus 4.
   forward. forward.
-  remember (od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1) as res.
-  Exists res.
-  entailer!.
-
-
-  repeat rewrite Int.Zshiftl_mul_two_p in * by omega.
-  repeat rewrite Int.Zshiftr_div_two_p in * by omega.
-  (* Hint Unfold two_p. *)
-  (* Hint Unfold two_power_pos. *)
-  (* Hint Unfold shift_pos. *)
-  destruct q0; replace (two_p 1) with 2 by auto; simpl;
-shr_round_pos_le:    replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r.
-
-  (* autounfold; destruct q0; *)
-  (*   replace (two_p 1) with 2 by auto; *)
-  (*   simpl; autounfold; simpl; *)
-  (*     replace (1/2) with 0 by auto; try rewrite Zdiv_1_r; try rewrite Z.add_0_r; try rewrite Z.mul_0_r; try rewrite Zdiv_0_r. *)
-
-
-  range_middle.
-  destruct H8.
-  split.
-  apply (fun x => Z.le_trans _ _ _ x H8).
-  easy.
-  apply (Z.le_trans _ _ _ H9).
-  easy.
-  split.
-  Definition
-  Lemma 0 <= Z.pos p <= pmax -> (a + (two_power_pos p) / 2) / two_power_pos p
-  (* assert(forall p, (Z.pos (shift_pos (Pos.succ p) 1) / 2) = (Z.pos (shift_pos p 1))). *)
-  (* intro. unfold shift_pos. rewrite Pos.iter_succ. *)
-  (* assert(forall p: positive, (Z.pos (xO p))/2 = Z.pos p). *)
-  (* intro. rewrite Pos2Z.pos_xO. rewrite Z.mul_comm. apply Z.div_mul. omega. *)
-  (* apply H8. *)
-  (* rewrite H8. *)
-
-  (* unfold Int.min_signed in *. simpl in *. unfold Z.shiftr, two_power_pos in *. simpl in *. *)
-
-
-  split.
-  repeat rewrite Int.Zshiftr_div_two_p.
-  apply Zdiv_le_lower_bound.
-  destruct q0.
-  compute. trivial.
-  compute. trivial.
-  (* q0 is never negative *)
-  assert (Hwrong : Z.neg p >= 0).
-  easy.
-  contradict Hwrong.
-  easy.
-  rewrite Z.mul_comm.
-
-  apply Z.le_trans with (i0 * c0)%Z.
-
-  (* evar (min_t: Z). *)
-  (* evar (max_t: Z). *)
-  (* assert (min_t <= i0 * c0 <= max_t); unfold min_t, max_t. *)
-  (* eapply range_mul_rzero. *)
-
-  range_right; try easy.
-
-  rewrite Z.mul_comm. (* put two_p q0 on the right ot use range_mul_rzero *)
-
-
-
-  (* match goal with *)
-  (* | [ Hx: ?min_x <= i0 <= ?max_x, Hy: 0 <= c0 <= ?max_y |- _ ] => *)
-  (*   apply (range_mul_rzero i0 c0 min_x max_x max_y); easy *)
-  (* end. *)
-
-
-
-    (* | ?x * ?y => *)
-    (*   range x; range y; *)
-    (*   match goal with *)
-    (*   | [ Hx: ?min_x <= x <= ?max_x, Hy: ?min_y <= y <= ?max_y |- _ ] => *)
-
-
-
-
-  (* Variable A: Set. *)
-  (* Variable f: A -> A -> A. *)
-  (* Infix "+" := f. *)
-  (* Variable lt: A -> A -> Prop. *)
-  (* Infix "<=" := lt. *)
-  (* Inductive expr: Set := *)
-  (* | Var: A -> expr *)
-  (* | Add: expr -> expr -> expr. *)
-  (* Fixpoint edenot (e: expr): A := *)
-  (*   match e with *)
-  (*   | Var v => v *)
-  (*   | Add e1 e2 => edenot e1 + edenot e2 *)
-  (*   end. *)
-  (* Inductive range: Set := *)
-  (* | Range: expr -> expr -> range. *)
-  (* Fixpoint rdenot (r: range): Prop := *)
-  (*   match r with *)
-  (*   | Range e1 e2 =>  edenot e1 <= edenot e2 *)
-  (*   end. *)
-  (* Lemma combine_range: forall a b c: Z, x <= a -> y <= b <= y -> x + y <= a + b *)
-  (* Fixpoint combine_range *)
-  (* Fixpoint max_of (lr: list range) (e: expr) *)
-
-  Lemma max_range_le: forall n: Z, n <= max_range n
-  match goal with
-  | [ |- ?a <= ?b + ?c ] =>
-    destruct c
-  end.
-  destruct ((1 <<< q0) / two_p 1)).
-
-  apply Z.le_trans with (i0 * c0)%Z.
-
-  match goal with
-  | [ Hx: ?low_x <= ?x <= ?hi_x, Hy: ?low_y <= ?y <= ?hi_y |- _ <= ?x * ?y ] =>
-    let min_x := fresh "min_x" in
-    remember (low_x * hi_y)%Z as min_x;
-    apply Z.le_trans with min_x
-    (* let v := constr:((low_x * 1)%Z) in *)
-    (* pose v as min_x *)
-    (* apply (Z.le_trans _ (low_x * low_y) _) *)
-  end.
-
-
-
-
-  Focus 2. (* Need le_add_pos_r like lt_add_pos _r *)
-
-  contradict H2.
-  rewrite Zlt_neg_0.
-  apply Zdiv_le_upper_bound. compute. trivial.
-  rewrite Z.mul_comm.
-
-  rewrite Int.Zshiftl_mul_two_p.
-  simpl.
-  simpl
-  unfold Z.shiftr. simpl.
-  rewrite <- Z.add_0_r at 1.
-  apply (Z.add_le_mono (Int.min_signed >>> 1) (i0*c0) 0 (1 <<< q0 >>> 1)).
-
-  admit. (* od_mul_Z bounds *)
-
-  forward.
-  entailer!.
-  forward.
-  forward.
   remember (od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1) as res.
   Exists res.
   entailer!.
