@@ -169,7 +169,7 @@ Hint Unfold od_rotate_pi4_kernel_sub_avg_Z.
 
 Definition od_rotate_pi4_kernel_sub_avg_spec : ident * funspec :=
  DECLARE _od_rotate_pi4_kernel
-  WITH p0: val, p1: val, c0: Z, q0: Z, c1: Z, q1: Z, i0: Z, i1: Z, type: Z, avg: Z
+  WITH p0: val, p1: val, i0: Z, i1: Z, c0: Z, q0: Z, c1: Z, q1: Z, type: Z, avg: Z
   PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint), _c0 OF tint, _q0 OF tint, _c1 OF tint, _q1 OF tint,
         _type OF tint, _avg OF tint ]
           PROP  (Int.min_signed >>> 17 <= i0 <= Int.max_signed >>> 17;
@@ -190,25 +190,49 @@ Definition od_rotate_pi4_kernel_sub_avg_spec : ident * funspec :=
                data_at Ews tint (Vint (Int.repr (snd res))) p1).
 
 
+Definition od_fdct_2_Z :=
+  fun (p0 p1: Z) =>
+    let (p1_2, p0_2) := od_rotate_pi4_kernel_sub_avg_Z p1 p0 11585 13 11585 13 in
+    (p0_2, p1_2).
+Hint Unfold od_fdct_2_Z.
+
 Definition od_fdct_2_spec : ident * funspec :=
  DECLARE _od_fdct_2
-  WITH p0: val, p1: val, sh : share, i0: Z, i1: Z(* , o0: Z, o1: Z *)
+  WITH p0: val, p1: val, i0: Z, i1: Z(* , o0: Z, o1: Z *)
   PRE [ _p0 OF (tptr tint), _p1 OF (tptr tint) ]
-          PROP  (readable_share sh; 0 <= i0 <= 8191; 0 <= i1 <= 8191)
+          PROP  (0 <= i0 <= 8191; 0 <= i1 <= 8191)
           LOCAL (temp _p0 p0; temp _p1 p1)
-          SEP   (data_at sh (tptr tint) (Vint (Int.repr i0)) p0;
-                 data_at sh (tptr tint) (Vint (Int.repr i1)) p1)
-  POST [tvoid] EX o0: Z, EX o1: Z,
-          PROP (-32768 <= o0 <= 32767; -32768 <= o1 <= 32767)
+          SEP   (data_at Ews tint (Vint (Int.repr i0)) p0;
+                 data_at Ews tint (Vint (Int.repr i1)) p1)
+  POST [tvoid] EX res: Z * Z,
+          PROP (res = od_fdct_2_Z i0 i1;
+                  -32768 <= (fst res) <= 32767; -32768 <= (snd res) <= 32767)
           LOCAL ()
-          SEP (data_at sh (tptr tint) (Vint (Int.repr o0)) p0;
-               data_at sh (tptr tint) (Vint (Int.repr o1)) p1).
+          SEP (data_at Ews tint (Vint (Int.repr (fst res))) p0;
+               data_at Ews tint (Vint (Int.repr (snd res))) p1).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
     sumtwo_spec; od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
     od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec
   ]).
+
+Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
+Proof.
+  start_function.
+  forward_call (p1, p0, i1, i0, 11585, 13, 11585, 13, _SUB, _AVG).
+
+  Focus 2.
+  apply extract_exists_pre; intro; forward.
+  remember (od_fdct_2_Z i0 i1) as res.
+  Exists res.
+  entailer!.
+  (*TODO: od_fdct_2_Z bounds properties *)
+  simpl.
+  split.
+  split.
+  
+
 
 Lemma add_le_2: forall min max a b: Z, Zeven min ->
                                        min < 0                   -> max > 0 ->
@@ -897,12 +921,6 @@ Proof.
   remember (od_rotate_pi4_kernel_sub_avg_Z i0 i1 c0 q0 c1 q1) as res.
   Exists res.
   entailer!.
-Qed.
-
-Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
-Proof.
-  start_function.
-
 Qed.
 
 Lemma body_sumarray: semax_body Vprog Gprog f_sumtwo sumtwo_spec.
