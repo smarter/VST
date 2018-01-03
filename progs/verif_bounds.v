@@ -595,6 +595,20 @@ Lemma shiftr_mono_l: forall a b q, 0 <= q -> a <= b -> a >>> q <= b >>> q.
   trivial.
 Qed.
 
+Lemma shiftr_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a >>> b.
+  intros.
+  rewrite Z.shiftr_div_pow2; try omega.
+  apply Z.div_pos; try omega.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+Lemma shiftl_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a <<< b.
+  intros.
+  rewrite Z.shiftl_mul_pow2; try omega.
+  apply Z.mul_nonneg_nonneg; try omega.
+  apply Z.lt_le_incl.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+
 Lemma shr_round_neg_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
                                           od_shr_round_Z x a <= od_shr_round_Z x b.
   intros.
@@ -671,23 +685,97 @@ Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c *
     + apply shiftr_mono_l; try omega.
       replace x with (x+0) at 1 by (apply Z.add_0_r).
       apply Z.add_le_mono_l.
-      Lemma shiftr_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a >>> b.
-        intros.
-        rewrite Z.shiftr_div_pow2; try omega.
-        apply Z.div_pos; try omega.
-        apply Z.pow_pos_nonneg; omega.
-      Qed.
-      Lemma shiftl_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a <<< b.
-        intros.
-        rewrite Z.shiftl_mul_pow2; try omega.
-        apply Z.mul_nonneg_nonneg; try omega.
-        apply Z.lt_le_incl.
-        apply Z.pow_pos_nonneg; omega.
-      Qed.
       apply shiftr_pos_nonneg; try omega.
       apply shiftl_pos_nonneg; omega.
 Qed.
 
+Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                              0 <= min_b -> min_a <= 0 ->  0 <= max_a ->
+                                                              min_a*max_b <= a*b <= max_a*max_b.
+  intros.
+  split.
+  - apply Z.le_trans with (min_a*b)%Z.
+    apply Z.mul_le_mono_nonpos_l; omega.
+    apply Zmult_le_compat_r; omega.
+  - apply Z.le_trans with (max_a*b)%Z.
+    apply Z.mul_le_mono_nonneg_r; omega.
+    apply Zmult_le_compat_l; omega.
+Qed.
+
+Lemma range_sub: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                        min_a-max_b <= a-b <= max_a-min_b.
+  intros.
+  omega.
+Qed.
+
+Lemma range_sub_avg: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                            od_sub_avg_Z min_a max_b <= od_sub_avg_Z a b <= od_sub_avg_Z max_a min_b.
+  intros.
+  repeat unfold od_sub_avg_Z.
+  repeat unfold od_sub_Z.
+  split; apply shiftr_mono_l; omega.
+Qed.
+
+(*od_mul_Z (od_sub_avg_Z i1 i0) c1 q1*)
+
+Ltac range t :=
+  let set_goal := (fun _ =>
+                     let min_t  := fresh "min_t" in
+                     let max_t  := fresh "max_t" in
+                     evar (min_t: Z); evar (max_t: Z);
+                     let min_t' := eval unfold min_t in min_t in
+                         let max_t' := eval unfold max_t in max_t in
+                             (* clear min_t max_t; *)
+                             assert (min_t' <= t <= max_t')
+                  ) in
+  match t with
+  | Z0 =>
+    idtac
+  | Zpos _ =>
+    idtac
+  | Zneg _ =>
+    idtac
+  | (?a - ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_sub; try easy)
+  | (od_sub_avg_Z ?a ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_sub_avg; try easy)
+  | (?a * ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_mul_rzero; try easy)
+  | _ =>
+    match goal with
+    | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
+      idtac
+    | _ =>
+      set_goal ()
+    end
+  end.
+
+Ltac range_left :=
+  match goal with
+  | [ |- ?x <= _ ] =>
+    range x
+  end.
+
+Ltac range_middle :=
+  match goal with
+  | [ |- _ <= ?x <= _ ] =>
+    range x
+  end.
+
+Ltac range_right :=
+  match goal with
+  | [ |- _ <= ?x ] =>
+    range x
+  end.
 
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
 Proof.
@@ -745,95 +833,6 @@ Proof.
   forward.
   forward.
   forward_call (p1_2, p0_2).
-
-  Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                             0 <= min_b -> min_a <= 0 ->  0 <= max_a ->
-                                                                min_a*max_b <= a*b <= max_a*max_b.
-    intros.
-    split.
-    - apply Z.le_trans with (min_a*b)%Z.
-      apply Z.mul_le_mono_nonpos_l; omega.
-      apply Zmult_le_compat_r; omega.
-    - apply Z.le_trans with (max_a*b)%Z.
-      apply Z.mul_le_mono_nonneg_r; omega.
-      apply Zmult_le_compat_l; omega.
-  Qed.
-
-  Lemma range_sub: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                                min_a-max_b <= a-b <= max_a-min_b.
-    intros.
-    omega.
-  Qed.
-
-  Lemma range_sub_avg: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                              od_sub_avg_Z min_a max_b <= od_sub_avg_Z a b <= od_sub_avg_Z max_a min_b.
-    intros.
-    repeat unfold od_sub_avg_Z.
-    repeat unfold od_sub_Z.
-    split; apply shiftr_mono_l; omega.
-  Qed.
-
-  (*od_mul_Z (od_sub_avg_Z i1 i0) c1 q1*)
-
-  Ltac range t :=
-    let set_goal := (fun _ =>
-        let min_t  := fresh "min_t" in
-        let max_t  := fresh "max_t" in
-        evar (min_t: Z); evar (max_t: Z);
-        let min_t' := eval unfold min_t in min_t in
-        let max_t' := eval unfold max_t in max_t in
-        (* clear min_t max_t; *)
-        assert (min_t' <= t <= max_t')
-   ) in
-    match t with
-    | Z0 =>
-      idtac
-    | Zpos _ =>
-      idtac
-    | Zneg _ =>
-      idtac
-    | (?a - ?b)%Z =>
-      range a;
-      range b;
-      set_goal ();
-      only 1: (eapply range_sub; try easy)
-    | (od_sub_avg_Z ?a ?b)%Z =>
-      range a;
-      range b;
-      set_goal ();
-      only 1: (eapply range_sub_avg; try easy)
-    | (?a * ?b)%Z =>
-      range a;
-      range b;
-      set_goal ();
-      only 1: (eapply range_mul_rzero; try easy)
-    | _ =>
-      match goal with
-      | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
-        idtac
-      | _ =>
-        set_goal ()
-      end
-    end.
-
-  Ltac range_left :=
-    match goal with
-    | [ |- ?x <= _ ] =>
-      range x
-    end.
-
-  Ltac range_middle :=
-    match goal with
-    | [ |- _ <= ?x <= _ ] =>
-      range x
-    end.
-
-  Ltac range_right :=
-    match goal with
-    | [ |- _ <= ?x ] =>
-      range x
-    end.
-
 
   range (i0*c0)%Z.
 
