@@ -217,6 +217,344 @@ Definition Gprog : funspecs :=
     od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec
   ]).
 
+Lemma div2_le: forall m, m <= 0 -> m <= Z.div2 m.
+  intros.
+  rewrite Z.div2_div.
+  apply Z.div_le_lower_bound; omega.
+Qed.
+
+Lemma div2_le_zero: forall m, m <= 0 -> Z.div2 m <= 0.
+  intros.
+  destruct (Z_le_lt_eq_dec _ _ H).
+  rewrite <- (Z.div2_neg m) in l.
+  omega.
+  rewrite e.
+  simpl.
+  omega.
+Qed.
+
+Theorem div_le_lower_bound_neg:
+  forall a b q, a<=0 -> 0<b -> b*q <= a -> q <= a/b.
+Proof.
+  intros a b q Ha Hb H.
+  destruct (Z.lt_ge_cases 0 q).
+  rewrite <- (Z.div_mul q b); try Z.order.
+  apply Z.div_le_mono; auto.
+  rewrite Z.mul_comm; auto.
+
+  assert(a/b <= 0).
+  apply Z.div_le_upper_bound; omega.
+  apply Z.div_le_lower_bound; omega.
+Qed.
+
+Theorem div_le_upper_bound_neg:
+  forall a b q, a<=0 -> 0<b -> a <= b*q -> a/b <= q.
+Proof.
+  intros.
+  rewrite (Z.mul_le_mono_pos_l _ _ b) by Z.order.
+  apply Z.le_trans with a; auto.
+  apply Z.mul_div_le; auto.
+Qed.
+
+Lemma div_le_compat_l: forall p q r, 0<=p -> 0<q<=r ->
+                                     p/r <= p/q.
+Proof.
+  intros p q r Hp (Hq,Hqr).
+  apply Z.div_le_lower_bound; auto.
+  rewrite (Z.div_mod p r) at 2 by Z.order.
+  apply Z.le_trans with (r*(p/r))%Z.
+  apply Z.mul_le_mono_nonneg_r; try Z.order.
+  apply Z.div_pos ; Z.order.
+  rewrite <- (Z.add_0_r (r*(p/r))) at 1.
+  rewrite <- Z.add_le_mono_l. destruct (Z.mod_bound_pos p r); Z.order.
+Qed.
+
+Lemma div_le_compat_l_neg: forall p q r, p<=0 -> 0<q<=r -> p/q <= p/r.
+Proof.
+  intros p q r Hp (Hq,Hqr).
+  apply div_le_lower_bound_neg; try omega.
+  rewrite (Z.div_mod p q) at 2 by Z.order.
+  apply Z.le_trans with (q*(p/q))%Z.
+  apply Z.mul_le_mono_nonpos_r; try omega.
+  apply div_le_upper_bound_neg; try omega.
+  rewrite <- Z.add_0_r at 1.
+  apply Zplus_le_compat_l.
+  apply Z.mod_pos_bound; Z.order.
+Qed.
+
+Lemma shiftl_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< q) <= (m <<< p).
+  intros.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  apply Z.mul_le_mono_nonpos_l; try omega.
+  apply Z.pow_le_mono_r; omega.
+Qed.
+
+Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m >>> p) <= (m >>> q).
+  intros.
+  repeat rewrite Z.shiftr_div_pow2; try omega.
+  apply div_le_compat_l_neg.
+  omega.
+  split.
+  apply Z.lt_le_trans with (2^0).
+  simpl. omega.
+  apply Z.pow_le_mono_r; omega.
+  apply Z.pow_le_mono_r; omega.
+Qed.
+
+Lemma shiftl_mono_l: forall a b q, 0 <= q -> a <= b -> a <<< q <= b <<< q.
+  intros.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  apply Z.mul_le_mono_pos_r; try omega.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+
+Lemma shiftl_mono_r: forall m p q, m > 0 -> p <= q -> (m <<< p) <= (m <<< q).
+  intros.
+  destruct p, q;
+    repeat rewrite (Z.shiftl_mul_pow2 _ 0);
+    repeat rewrite (Z.shiftl_mul_pow2 _ (Z.pos _));
+    repeat rewrite (Z.shiftl_div_pow2 _ (Z.neg _));
+    repeat rewrite Pos2Z.opp_neg;
+    try easy.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  apply Z.pow_le_mono_r; omega.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  apply Z.pow_le_mono_r; omega.
+
+  apply Z.le_trans with m.
+  apply Z.div_le_upper_bound.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  replace m with (1*m)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  simpl; omega.
+
+  apply Z.le_trans with m.
+  apply Z.div_le_upper_bound.
+  apply Z.pow_pos_nonneg; try omega; auto.
+  replace m with (1*m)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.
+
+  replace m with (m*1)%Z at 1 by omega.
+  apply Z.mul_le_mono_nonneg_l; try omega.
+  replace 1 with (Z.succ 0) by omega.
+  apply Zlt_le_succ.
+  apply Z.pow_pos_nonneg; try omega; auto.
+
+  apply Z.div_le_compat_l; try omega.
+  split.
+  apply Z.pow_pos_nonneg; try omega; auto with zarith.
+  apply Z.pow_le_mono_r; try omega.
+  apply Z.opp_le_mono.
+  auto.
+Qed.
+
+Lemma shiftr_mono_l: forall a b q, 0 <= q -> a <= b -> a >>> q <= b >>> q.
+  intros.
+  repeat rewrite Z.shiftr_div_pow2; try omega.
+  apply Z.div_le_mono.
+  apply Z.pow_pos_nonneg; omega.
+  trivial.
+Qed.
+
+Lemma shiftr_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a >>> b.
+  intros.
+  rewrite Z.shiftr_div_pow2; try omega.
+  apply Z.div_pos; try omega.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+Lemma shiftl_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a <<< b.
+  intros.
+  rewrite Z.shiftl_mul_pow2; try omega.
+  apply Z.mul_nonneg_nonneg; try omega.
+  apply Z.lt_le_incl.
+  apply Z.pow_pos_nonneg; omega.
+Qed.
+
+Lemma shr_round_neg_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
+                                          od_shr_round_Z x a <= od_shr_round_Z x b.
+  intros.
+  autounfold.
+  apply Z.le_trans with (x + (1 <<< a >>> 1) >>> b).
+  apply shiftr_neg_le; try omega.
+  apply Z.le_lt_trans with (x + (1 <<< b)); try auto.
+  apply Z.add_le_mono_l.
+  apply Z.le_trans with (1 <<< a).
+  rewrite <- Z.div2_spec.
+  rewrite Z.div2_div.
+  apply Z.div_le_upper_bound; try omega.
+  rewrite <- Z.mul_1_l at 1.
+  apply Z.mul_le_mono_nonneg_r; try omega.
+  apply Z.shiftl_nonneg; omega.
+  repeat rewrite Z.shiftl_mul_pow2; try omega.
+  repeat rewrite Z.mul_1_l.
+  apply Z.pow_le_mono_r; omega.
+  apply shiftr_mono_l; try omega.
+  apply Z.add_le_mono_l.
+  apply shiftr_mono_l; try omega.
+  apply shiftl_mono_r; omega.
+Qed.
+
+Lemma shr_round_mono_l: forall x y a, x <= y -> a >= 0 ->
+                                      od_shr_round_Z x a <= od_shr_round_Z y a.
+  intros.
+  autounfold.
+  apply shiftr_mono_l; omega.
+Qed.
+
+(* TOOO: only needs _ <= _, not _ <= _ <= _ *)
+Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + (1 <<< max_q) < 0 ->
+                                                   min_q <= q <= max_q ->
+                                                   od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
+  intros.
+  split; apply shr_round_neg_mono_r; try omega.
+  apply Z.le_lt_trans with (x + (1 <<< max_q)); try omega.
+  apply Z.add_le_mono_l.
+  apply shiftl_mono_r; omega.
+Qed.
+
+Lemma shr_round_pos_le: forall x a b: Z, 0 <= x -> 0 <= a <= b ->
+                                         1 <<< (b - 1) <= x ->
+                                         od_shr_round_Z x b <= od_shr_round_Z x a.
+  intros.
+  autounfold.
+  destruct H0.
+(*Z_div_plus: forall a b c : Z, c > 0 -> (a + b * c) / c = a / c + b
+Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c * a / b
+ *)
+
+  destruct (Z_le_lt_eq_dec _ _ H2).
+  Focus 2. repeat rewrite <- e; reflexivity.
+
+  apply Z.le_trans with ((2*x) >>> b).
+  - apply shiftr_mono_l; try omega.
+    rewrite Z.shiftr_shiftl_l; omega.
+  - apply Z.le_trans with (x >>> a).
+    + repeat rewrite Z.shiftr_div_pow2; try omega.
+      replace (2^b) with (2*(2^(b-1)))%Z.
+      rewrite Z.div_mul_cancel_l; try omega.
+      apply Z.div_le_compat_l; try omega.
+      split.
+      apply Z.pow_pos_nonneg; omega.
+      apply Z.pow_le_mono_r; omega.
+      assert (0 < 2^(b-1)) by (apply Z.pow_pos_nonneg; omega).
+      omega.
+
+      rewrite <- Z.pow_succ_r; try omega.
+      rewrite <- Z.add_1_r.
+      replace (b - 1 + 1) with b by omega.
+      reflexivity.
+    + apply shiftr_mono_l; try omega.
+      replace x with (x+0) at 1 by (apply Z.add_0_r).
+      apply Z.add_le_mono_l.
+      apply shiftr_pos_nonneg; try omega.
+      apply shiftl_pos_nonneg; omega.
+Qed.
+
+Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                              0 <= min_b -> min_a <= 0 ->  0 <= max_a ->
+                                                              min_a*max_b <= a*b <= max_a*max_b.
+  intros.
+  split.
+  - apply Z.le_trans with (min_a*b)%Z.
+    apply Z.mul_le_mono_nonpos_l; omega.
+    apply Zmult_le_compat_r; omega.
+  - apply Z.le_trans with (max_a*b)%Z.
+    apply Z.mul_le_mono_nonneg_r; omega.
+    apply Zmult_le_compat_l; omega.
+Qed.
+
+Lemma range_sub: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                        min_a-max_b <= a-b <= max_a-min_b.
+  intros.
+  omega.
+Qed.
+
+Lemma range_add: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                        min_a+min_b <= a+b <= max_a+max_b.
+  intros.
+  omega.
+Qed.
+
+Lemma range_sub_avg: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
+                                                            od_sub_avg_Z min_a max_b <= od_sub_avg_Z a b <= od_sub_avg_Z max_a min_b.
+  intros.
+  repeat unfold od_sub_avg_Z.
+  repeat unfold od_sub_Z.
+  split; apply shiftr_mono_l; omega.
+Qed.
+
+(*od_mul_Z (od_sub_avg_Z i1 i0) c1 q1*)
+
+Ltac range t :=
+  let set_goal := (fun _ =>
+                     let min_t  := fresh "min_t" in
+                     let max_t  := fresh "max_t" in
+                     evar (min_t: Z); evar (max_t: Z);
+                     let min_t' := eval unfold min_t in min_t in
+                         let max_t' := eval unfold max_t in max_t in
+                             (* clear min_t max_t; *)
+                             assert (min_t' <= t <= max_t')
+                  ) in
+  match t with
+  | Z0 =>
+    idtac
+  | Zpos _ =>
+    idtac
+  | Zneg _ =>
+    idtac
+  | (?a + ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_add; try easy)
+  | (?a - ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_sub; try easy)
+  | (od_sub_avg_Z ?a ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_sub_avg; try easy)
+  | (?a * ?b)%Z =>
+    range a;
+    range b;
+    set_goal ();
+    only 1: (eapply range_mul_rzero; try easy)
+  | _ =>
+    match goal with
+    | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
+      idtac
+    | _ =>
+      set_goal ()
+    end
+  end.
+
+Ltac range_left :=
+  match goal with
+  | [ |- ?x <= _ ] =>
+    range x
+  end.
+
+Ltac range_middle :=
+  match goal with
+  | [ |- _ <= ?x <= _ ] =>
+    range x
+  end.
+
+Ltac range_right :=
+  match goal with
+  | [ |- _ <= ?x ] =>
+    range x
+  end.
+
 Lemma body_od_fdct_2: semax_body Vprog Gprog f_od_fdct_2 od_fdct_2_spec.
 Proof.
   start_function.
@@ -229,10 +567,60 @@ Proof.
   entailer!.
   (*TODO: od_fdct_2_Z bounds properties *)
   simpl.
-  split.
-  split.
-  
+  unfold od_add_Z, od_mul_Z.
+  autounfold. autounfold. simpl.
+  replace (8192 >>> 1) with 4096 by easy.
 
+  rewrite !Z.shiftr_div_pow2; try omega.
+  replace (2^1) with 2 by easy.
+  replace (2^13) with 8192 by easy.
+  remember ((i0 - i1) / 2) as i01div.
+  remember (i1 * 11585 + 4096)%Z as a.
+  remember (i01div * 11585 + 4096) as b.
+  remember (a / 8192) as adiv.
+  remember (b / 8192) as bdiv.
+
+  assert (2*i01div <= (i0 - i1) < 2*(Z.succ i01div)).
+  rewrite Heqi01div.
+  split.
+  apply Z.mul_div_le; easy.
+  apply Z.mul_succ_div_gt; easy.
+  
+  assert (8192*adiv <= a < 8192*(Z.succ adiv)).
+  rewrite Heqadiv.
+  split.
+  apply Z.mul_div_le; easy.
+  apply Z.mul_succ_div_gt; easy.
+
+  assert (8192*bdiv <= b < 8192*(Z.succ bdiv)).
+  rewrite Heqbdiv.
+  split.
+  apply Z.mul_div_le; easy.
+  apply Z.mul_succ_div_gt; easy.
+
+  omega.
+
+  rewrite !Z.shiftr_div_pow2; try omega.
+  assert (Hmin: Int.min_signed / 2^17 <= 0).
+  apply Z.div_le_upper_bound; easy.
+
+
+  remember (Int.max_signed / 2^17) as max_signed_div.
+  assert (Int.max_signed < (2^17)*(Z.succ max_signed_div)).
+  rewrite Heqmax_signed_div.
+  apply Z.mul_succ_div_gt; easy.
+  assert (8191 < max_signed_div). rewrite Heqmax_signed_div. easy.
+
+  split.
+  split.
+  apply Z.le_trans with 0; easy.
+  omega.
+  split.
+  split.
+  apply Z.le_trans with 0; easy.
+  omega.
+  easy.
+Qed.
 
 Lemma add_le_2: forall min max a b: Z, Zeven min ->
                                        min < 0                   -> max > 0 ->
@@ -347,52 +735,6 @@ Qed.
 Lemma conj_same: forall P: Prop, P -> P /\ P.
   intros.
   split; trivial.
-Qed.
-
-Lemma shiftl_mono_r: forall m p q, m > 0 -> p <= q -> (m <<< p) <= (m <<< q).
-  intros.
-  destruct p, q;
-    repeat rewrite (Z.shiftl_mul_pow2 _ 0);
-    repeat rewrite (Z.shiftl_mul_pow2 _ (Z.pos _));
-    repeat rewrite (Z.shiftl_div_pow2 _ (Z.neg _));
-    repeat rewrite Pos2Z.opp_neg;
-    try easy.
-  apply Z.mul_le_mono_nonneg_l; try omega.
-  apply Z.pow_le_mono_r; omega.
-  apply Z.mul_le_mono_nonneg_l; try omega.
-  apply Z.pow_le_mono_r; omega.
-
-  apply Z.le_trans with m.
-  apply Z.div_le_upper_bound.
-  apply Z.pow_pos_nonneg; try omega; auto.
-  replace m with (1*m)%Z at 1 by omega.
-  apply Z.mul_le_mono_nonneg_r; try omega.
-  replace 1 with (Z.succ 0) by omega.
-  apply Zlt_le_succ.
-  apply Z.pow_pos_nonneg; try omega; auto.
-  simpl; omega.
-
-  apply Z.le_trans with m.
-  apply Z.div_le_upper_bound.
-  apply Z.pow_pos_nonneg; try omega; auto.
-  replace m with (1*m)%Z at 1 by omega.
-  apply Z.mul_le_mono_nonneg_r; try omega.
-  replace 1 with (Z.succ 0) by omega.
-  apply Zlt_le_succ.
-  apply Z.pow_pos_nonneg; try omega; auto.
-
-  replace m with (m*1)%Z at 1 by omega.
-  apply Z.mul_le_mono_nonneg_l; try omega.
-  replace 1 with (Z.succ 0) by omega.
-  apply Zlt_le_succ.
-  apply Z.pow_pos_nonneg; try omega; auto.
-
-  apply Z.div_le_compat_l; try omega.
-  split.
-  apply Z.pow_pos_nonneg; try omega; auto with zarith.
-  apply Z.pow_le_mono_r; try omega.
-  apply Z.opp_le_mono.
-  auto.
 Qed.
 
 Lemma shr_signed: forall m n,
@@ -519,287 +861,6 @@ Proof.
   forward.
   forward.
 Qed.
-
-Lemma div2_le: forall m, m <= 0 -> m <= Z.div2 m.
-  intros.
-  rewrite Z.div2_div.
-  apply Z.div_le_lower_bound; omega.
-Qed.
-
-Lemma div2_le_zero: forall m, m <= 0 -> Z.div2 m <= 0.
-  intros.
-  destruct (Z_le_lt_eq_dec _ _ H).
-  rewrite <- (Z.div2_neg m) in l.
-  omega.
-  rewrite e.
-  simpl.
-  omega.
-Qed.
-
-Theorem div_le_lower_bound_neg:
-  forall a b q, a<=0 -> 0<b -> b*q <= a -> q <= a/b.
-Proof.
-  intros a b q Ha Hb H.
-  destruct (Z.lt_ge_cases 0 q).
-  rewrite <- (Z.div_mul q b); try Z.order.
-  apply Z.div_le_mono; auto.
-  rewrite Z.mul_comm; auto.
-
-  assert(a/b <= 0).
-  apply Z.div_le_upper_bound; omega.
-  apply Z.div_le_lower_bound; omega.
-Qed.
-
-Theorem div_le_upper_bound_neg:
-  forall a b q, a<=0 -> 0<b -> a <= b*q -> a/b <= q.
-Proof.
-  intros.
-  rewrite (Z.mul_le_mono_pos_l _ _ b) by Z.order.
-  apply Z.le_trans with a; auto.
-  apply Z.mul_div_le; auto.
-Qed.
-
-Lemma div_le_compat_l: forall p q r, 0<=p -> 0<q<=r ->
-                                     p/r <= p/q.
-Proof.
-  intros p q r Hp (Hq,Hqr).
-  apply Z.div_le_lower_bound; auto.
-  rewrite (Z.div_mod p r) at 2 by Z.order.
-  apply Z.le_trans with (r*(p/r))%Z.
-  apply Z.mul_le_mono_nonneg_r; try Z.order.
-  apply Z.div_pos ; Z.order.
-  rewrite <- (Z.add_0_r (r*(p/r))) at 1.
-  rewrite <- Z.add_le_mono_l. destruct (Z.mod_bound_pos p r); Z.order.
-Qed.
-
-Lemma div_le_compat_l_neg: forall p q r, p<=0 -> 0<q<=r -> p/q <= p/r.
-Proof.
-  intros p q r Hp (Hq,Hqr).
-  apply div_le_lower_bound_neg; try omega.
-  rewrite (Z.div_mod p q) at 2 by Z.order.
-  apply Z.le_trans with (q*(p/q))%Z.
-  apply Z.mul_le_mono_nonpos_r; try omega.
-  apply div_le_upper_bound_neg; try omega.
-  rewrite <- Z.add_0_r at 1.
-  apply Zplus_le_compat_l.
-  apply Z.mod_pos_bound; Z.order.
-Qed.
-
-Lemma shiftl_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m <<< q) <= (m <<< p).
-  intros.
-  repeat rewrite Z.shiftl_mul_pow2; try omega.
-  apply Z.mul_le_mono_nonpos_l; try omega.
-  apply Z.pow_le_mono_r; omega.
-Qed.
-
-Lemma shiftr_neg_le: forall m p q, m < 0 -> p >= 0 -> q >= 0 -> p <= q -> (m >>> p) <= (m >>> q).
-  intros.
-  repeat rewrite Z.shiftr_div_pow2; try omega.
-  apply div_le_compat_l_neg.
-  omega.
-  split.
-  apply Z.lt_le_trans with (2^0).
-  simpl. omega.
-  apply Z.pow_le_mono_r; omega.
-  apply Z.pow_le_mono_r; omega.
-Qed.
-
-Lemma shiftl_mono_l: forall a b q, 0 <= q -> a <= b -> a <<< q <= b <<< q.
-  intros.
-  repeat rewrite Z.shiftl_mul_pow2; try omega.
-  apply Z.mul_le_mono_pos_r; try omega.
-  apply Z.pow_pos_nonneg; omega.
-Qed.
-
-Lemma shiftr_mono_l: forall a b q, 0 <= q -> a <= b -> a >>> q <= b >>> q.
-  intros.
-  repeat rewrite Z.shiftr_div_pow2; try omega.
-  apply Z.div_le_mono.
-  apply Z.pow_pos_nonneg; omega.
-  trivial.
-Qed.
-
-Lemma shiftr_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a >>> b.
-  intros.
-  rewrite Z.shiftr_div_pow2; try omega.
-  apply Z.div_pos; try omega.
-  apply Z.pow_pos_nonneg; omega.
-Qed.
-Lemma shiftl_pos_nonneg: forall a b, 0 <= a -> 0 <= b -> 0 <= a <<< b.
-  intros.
-  rewrite Z.shiftl_mul_pow2; try omega.
-  apply Z.mul_nonneg_nonneg; try omega.
-  apply Z.lt_le_incl.
-  apply Z.pow_pos_nonneg; omega.
-Qed.
-
-Lemma shr_round_neg_mono_r: forall x a b, 0 <= a <= b -> x + (1 <<< b) < 0 ->
-                                          od_shr_round_Z x a <= od_shr_round_Z x b.
-  intros.
-  autounfold.
-  apply Z.le_trans with (x + (1 <<< a >>> 1) >>> b).
-  apply shiftr_neg_le; try omega.
-  apply Z.le_lt_trans with (x + (1 <<< b)); try auto.
-  apply Z.add_le_mono_l.
-  apply Z.le_trans with (1 <<< a).
-  rewrite <- Z.div2_spec.
-  rewrite Z.div2_div.
-  apply Z.div_le_upper_bound; try omega.
-  rewrite <- Z.mul_1_l at 1.
-  apply Z.mul_le_mono_nonneg_r; try omega.
-  apply Z.shiftl_nonneg; omega.
-  repeat rewrite Z.shiftl_mul_pow2; try omega.
-  repeat rewrite Z.mul_1_l.
-  apply Z.pow_le_mono_r; omega.
-  apply shiftr_mono_l; try omega.
-  apply Z.add_le_mono_l.
-  apply shiftr_mono_l; try omega.
-  apply shiftl_mono_r; omega.
-Qed.
-
-Lemma shr_round_mono_l: forall x y a, x <= y -> a >= 0 ->
-                                      od_shr_round_Z x a <= od_shr_round_Z y a.
-  intros.
-  autounfold.
-  apply shiftr_mono_l; omega.
-Qed.
-
-(* TOOO: only needs _ <= _, not _ <= _ <= _ *)
-Lemma shr_round_neg_le: forall x q min_q max_q: Z, min_q >= 0 -> x + (1 <<< max_q) < 0 ->
-                                                   min_q <= q <= max_q ->
-                                                   od_shr_round_Z x min_q <= od_shr_round_Z x q <= od_shr_round_Z x max_q.
-  intros.
-  split; apply shr_round_neg_mono_r; try omega.
-  apply Z.le_lt_trans with (x + (1 <<< max_q)); try omega.
-  apply Z.add_le_mono_l.
-  apply shiftl_mono_r; omega.
-Qed.
-
-Lemma shr_round_pos_le: forall x a b: Z, 0 <= x -> 0 <= a <= b ->
-                                         1 <<< (b - 1) <= x ->
-                                         od_shr_round_Z x b <= od_shr_round_Z x a.
-  intros.
-  autounfold.
-  destruct H0.
-(*Z_div_plus: forall a b c : Z, c > 0 -> (a + b * c) / c = a / c + b
-Zdiv_mult_le: forall a b c : Z, 0 <= a -> 0 <= b -> 0 <= c -> c * (a / b) <= c * a / b
- *)
-
-  destruct (Z_le_lt_eq_dec _ _ H2).
-  Focus 2. repeat rewrite <- e; reflexivity.
-
-  apply Z.le_trans with ((2*x) >>> b).
-  - apply shiftr_mono_l; try omega.
-    rewrite Z.shiftr_shiftl_l; omega.
-  - apply Z.le_trans with (x >>> a).
-    + repeat rewrite Z.shiftr_div_pow2; try omega.
-      replace (2^b) with (2*(2^(b-1)))%Z.
-      rewrite Z.div_mul_cancel_l; try omega.
-      apply Z.div_le_compat_l; try omega.
-      split.
-      apply Z.pow_pos_nonneg; omega.
-      apply Z.pow_le_mono_r; omega.
-      assert (0 < 2^(b-1)) by (apply Z.pow_pos_nonneg; omega).
-      omega.
-
-      rewrite <- Z.pow_succ_r; try omega.
-      rewrite <- Z.add_1_r.
-      replace (b - 1 + 1) with b by omega.
-      reflexivity.
-    + apply shiftr_mono_l; try omega.
-      replace x with (x+0) at 1 by (apply Z.add_0_r).
-      apply Z.add_le_mono_l.
-      apply shiftr_pos_nonneg; try omega.
-      apply shiftl_pos_nonneg; omega.
-Qed.
-
-Lemma range_mul_rzero: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                              0 <= min_b -> min_a <= 0 ->  0 <= max_a ->
-                                                              min_a*max_b <= a*b <= max_a*max_b.
-  intros.
-  split.
-  - apply Z.le_trans with (min_a*b)%Z.
-    apply Z.mul_le_mono_nonpos_l; omega.
-    apply Zmult_le_compat_r; omega.
-  - apply Z.le_trans with (max_a*b)%Z.
-    apply Z.mul_le_mono_nonneg_r; omega.
-    apply Zmult_le_compat_l; omega.
-Qed.
-
-Lemma range_sub: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                        min_a-max_b <= a-b <= max_a-min_b.
-  intros.
-  omega.
-Qed.
-
-Lemma range_sub_avg: forall a b min_a max_a min_b max_b: Z, min_a <= a <= max_a -> min_b <= b <= max_b ->
-                                                            od_sub_avg_Z min_a max_b <= od_sub_avg_Z a b <= od_sub_avg_Z max_a min_b.
-  intros.
-  repeat unfold od_sub_avg_Z.
-  repeat unfold od_sub_Z.
-  split; apply shiftr_mono_l; omega.
-Qed.
-
-(*od_mul_Z (od_sub_avg_Z i1 i0) c1 q1*)
-
-Ltac range t :=
-  let set_goal := (fun _ =>
-                     let min_t  := fresh "min_t" in
-                     let max_t  := fresh "max_t" in
-                     evar (min_t: Z); evar (max_t: Z);
-                     let min_t' := eval unfold min_t in min_t in
-                         let max_t' := eval unfold max_t in max_t in
-                             (* clear min_t max_t; *)
-                             assert (min_t' <= t <= max_t')
-                  ) in
-  match t with
-  | Z0 =>
-    idtac
-  | Zpos _ =>
-    idtac
-  | Zneg _ =>
-    idtac
-  | (?a - ?b)%Z =>
-    range a;
-    range b;
-    set_goal ();
-    only 1: (eapply range_sub; try easy)
-  | (od_sub_avg_Z ?a ?b)%Z =>
-    range a;
-    range b;
-    set_goal ();
-    only 1: (eapply range_sub_avg; try easy)
-  | (?a * ?b)%Z =>
-    range a;
-    range b;
-    set_goal ();
-    only 1: (eapply range_mul_rzero; try easy)
-  | _ =>
-    match goal with
-    | [ Hx: ?min_t <= t <= ?max_t |- _ ] =>
-      idtac
-    | _ =>
-      set_goal ()
-    end
-  end.
-
-Ltac range_left :=
-  match goal with
-  | [ |- ?x <= _ ] =>
-    range x
-  end.
-
-Ltac range_middle :=
-  match goal with
-  | [ |- _ <= ?x <= _ ] =>
-    range x
-  end.
-
-Ltac range_right :=
-  match goal with
-  | [ |- _ <= ?x ] =>
-    range x
-  end.
 
 Lemma body_od_rotate_pi4_kernel_sub_avg: semax_body Vprog Gprog f_od_rotate_pi4_kernel od_rotate_pi4_kernel_sub_avg_spec.
 Proof.
