@@ -585,7 +585,7 @@ Proof.
   split.
   apply Z.mul_div_le; easy.
   apply Z.mul_succ_div_gt; easy.
-  
+
   assert (8192*adiv <= a < 8192*(Z.succ adiv)).
   rewrite Heqadiv.
   split.
@@ -622,46 +622,6 @@ Proof.
   easy.
 Qed.
 
-Lemma add_le_2: forall min max a b: Z, Zeven min ->
-                                       min < 0                   -> max > 0 ->
-                                       min >>> 1 <= a <= max >>> 1 -> min >>> 1 <= b <= max - (max >>> 1) ->
-                                       min <= a + b <= max.
-  intros.
-  split.
-  replace min with ((min >>> 1) + (min >>> 1)).
-  apply Z.add_le_mono; omega.
-  symmetry.
-  rewrite Z.add_diag.
-  unfold Z.shiftr.
-  simpl.
-  apply Zeven_div2.
-  trivial.
-
-  (* destruct Zeven_odd_dec with max. *)
-  (* - replace max with ((max >>> 1) + (max >>> 1)) in H3 |- *. *)
-  (*   apply Z.add_le_mono. *)
-  (*   unfold Z.shiftr in *. *)
-
-  (*   apply Z.add_le_mono; omega. *)
-  (*   rewrite Z.add_diag. *)
-  (*   unfold Z.shiftr. *)
-  (*   simpl. *)
-  (*   symmetry. *)
-  (*   apply Zeven_div2. *)
-  (*   trivial. *)
-  (* - replace max with ((max >>> 1) + (max >>> 1) + 1). *)
-  (*   apply Z.le_trans with ((max >>> 1) + (max >>> 1)). *)
-  (*   apply Z.add_le_mono; omega. *)
-  (*   omega. *)
-  (*   rewrite Z.add_diag. *)
-  (*   unfold Z.shiftr. *)
-  (*   simpl. *)
-  (*   symmetry. *)
-  (*   apply Zodd_div2. *)
-  (*   trivial. *)
-  admit.
-Admitted.
-
 Lemma body_od_add: semax_body Vprog Gprog f_od_add od_add_spec.
 Proof.
   start_function.
@@ -670,13 +630,9 @@ Proof.
 
   unfold Z.shiftr in *.
   simpl in *.
-
   repeat rewrite Int.signed_repr.
-  apply add_le_2; try easy.
-  unfold Int.max_signed, Int.min_signed.
-  simpl.
-  replace (-2147483648 >>> 1) with (-1073741824) by auto.
-  omega.
+
+  repable_signed.
   repable_signed.
   repable_signed.
 Qed.
@@ -689,13 +645,9 @@ Proof.
 
   unfold Z.shiftr in *.
   simpl in *.
-
   repeat rewrite Int.signed_repr.
-  apply add_le_2; try easy.
-  unfold Int.max_signed, Int.min_signed.
-  simpl.
-  replace (-2147483648 >>> 1) with (-1073741824) by auto.
-  omega.
+
+  repable_signed.
   repable_signed.
   repable_signed.
 Qed.
@@ -708,11 +660,7 @@ Proof.
   assert(sum_signed: Int.min_signed <= p0 + p1 <= Int.max_signed).
     unfold Z.shiftr in *.
     simpl in *.
-    apply add_le_2; try (easy || repable_signed).
-    unfold Int.max_signed, Int.min_signed.
-    simpl.
-    replace (-2147483648 >>> 1) with (-1073741824) by auto.
-    omega.
+    repable_signed.
 
   forward.
   entailer!.
@@ -730,11 +678,6 @@ Proof.
   rewrite Int.signed_repr.
   trivial.
   trivial.
-Qed.
-
-Lemma conj_same: forall P: Prop, P -> P /\ P.
-  intros.
-  split; trivial.
 Qed.
 
 Lemma shr_signed: forall m n,
@@ -974,7 +917,7 @@ Proof.
   apply shiftl_mono_r; omega.
   simpl; omega.
   easy.
-  
+
   forward.
   entailer!.
 
