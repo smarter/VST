@@ -693,106 +693,165 @@ Qed.
 Lemma body_od_mul: semax_body Vprog Gprog f_od_mul od_mul_spec.
 Proof.
   start_function.
-  admit.
 
-  (* assert(ltu_q_wordsize: Int.ltu (Int.repr q) Int.iwordsize = true). *)
-  (*   unfold Int.ltu. *)
-  (*   rewrite zlt_true. *)
-  (*   simpl. *)
-  (*   trivial. *)
+  assert(ltu_q_wordsize: Int.ltu (Int.repr q) Int.iwordsize = true). {
+    unfold Int.ltu.
+    rewrite zlt_true.
+    simpl.
+    trivial.
 
-  (*   unfold Int.iwordsize. *)
-  (*   unfold Int.zwordsize. *)
-  (*   simpl. *)
-  (*   repeat rewrite Int.unsigned_repr. *)
-  (*   omega. *)
-  (*   repable_signed. *)
-  (*   repable_signed. *)
+    unfold Int.iwordsize.
+    unfold Int.zwordsize.
+    simpl.
+    repeat rewrite Int.unsigned_repr.
+    omega.
+    repable_signed.
+    repable_signed.
+  }
 
-  (* assert (pow2_q_signed: Int.min_signed <= 1 <<< q <= Int.max_signed). *)
-  (*   split. *)
-  (*   (**) apply Z.le_trans with (1 <<< 0). *)
-  (*     simpl. *)
-  (*     repable_signed. *)
-  (*     apply shiftl_mono_r; omega. *)
-  (*   (**) apply Z.le_trans with (1 <<< 15). *)
-  (*     apply shiftl_mono_r; omega. *)
-  (*     unfold Int.max_signed; simpl; omega. *)
+  assert (pow2_q_signed: Int.min_signed <= 1 <<< q <= Int.max_signed). {
+    split.
+    - apply Z.le_trans with (1 <<< 0).
+      simpl.
+      repable_signed.
+      apply shiftl_mono_r; omega.
+    - apply Z.le_trans with (1 <<< 15).
+      apply shiftl_mono_r; omega.
+      unfold Int.max_signed; simpl; omega.
+  }
 
+  rewrite !Z.shiftr_div_pow2 in H; try omega.
+  remember (Int.min_signed / 2^17) as min_signed_div.
+  assert ((2^17)*min_signed_div <= Int.min_signed). {
+    rewrite Heqmin_signed_div.
+    apply Z.mul_div_le; easy.
+  }
+  remember (Int.max_signed / 2^17) as max_signed_div.
+  assert ((2^17)*max_signed_div <= Int.max_signed < (2^17)*(Z.succ max_signed_div)). {
+    rewrite Heqmax_signed_div.
+    split.
+    - apply Z.mul_div_le; easy.
+    - apply Z.mul_succ_div_gt; easy.
+  }
 
-  (* forward. *)
-  (* entailer!. *)
-  (* split3. *)
-  (* rewrite ltu_q_wordsize. *)
-  (* unfold is_true. trivial. *)
-  (* rewrite ltu_q_wordsize. *)
-  (* unfold is_true. trivial. *)
-  (* admit. (*Int.min_signed <= Int.signed (Int.repr n) * Int.signed (Int.repr c) <= Int.max_signed*) *)
+  remember (1 <<< q >>> 1) as bias.
+  assert (Hq: 0 <= bias <= 2^14). {
+    rewrite Heqbias.
+    rewrite Z.shiftr_div_pow2, Z.shiftl_mul_pow2 by omega.
+    replace (1 * 2^q)%Z with (2^q) by omega.
+    split.
+    - apply Z.div_le_lower_bound.
+      replace (2^1) with 2 by easy.
+      omega.
+      simpl.
+      apply Z.lt_le_incl.
+      apply Z.pow_pos_nonneg; omega.
+    - destruct H1.
+      destruct (Z_le_lt_eq_dec _ _ H1).
+      + rewrite <- Z.pow_sub_r by omega.
+        apply Z.pow_le_mono_r; omega.
+      + rewrite <- e.
+        easy.
+  }
+  replace (2^14) with 16384 in Hq by easy.
 
-  (* admit. *)
-  (* admit. *)
+  range (n*c)%Z. rewrite Heqmin_signed_div; easy. rewrite Heqmax_signed_div; easy.
+  assert (Hnc1: Int.min_signed <= n*c <= Int.max_signed). {
+    split.
+    apply Z.le_trans with min_t; unfold min_t; rewrite Heqmin_signed_div. easy. omega.
+    apply Z.le_trans with max_t; unfold max_t; rewrite Heqmax_signed_div. omega. easy.
+  }
+  assert (Hnc2: Int.min_signed <= n*c + bias <= Int.max_signed). {
+    split.
+    omega.
 
-  (* entailer!. *)
-  (* unfold sem_shift, sem_shift_ii. *)
-  (* simpl. *)
-  (* rewrite ltu_q_wordsize. *)
-  (* simpl. *)
-  (* f_equal. *)
+    replace (2^17) with 131072 in * by easy.
+    
+    unfold Int.max_signed in *; simpl in *. omega.
+  }
 
-  (* (* Lemma add_signed: forall m n, *) *)
-  (* (*     (* Int.min_signed <= m <= Int.max_signed -> *) *) *)
-  (* (*     (* 0 <= n <= Int.max_unsigned -> *) *) *)
-  (* (*     Int.repr (m + n) = Int.shr (Int.repr m) (Int.repr n). *) *)
+  forward.
+  entailer!.
 
-  (* unfold od_mul_Z. *)
-  (* rewrite shr_signed. *)
-  (* f_equal. *)
-  (* rewrite Int.add_signed. *)
-  (* f_equal. *)
-  (* repeat rewrite Int.signed_repr. *)
-  (* f_equal. *)
+  (* Bug? These definitions seem to be lost by "forward." and "entailer!." *)
+  remember (Int.min_signed / 2^17) as min_signed_div.
+  assert ((2^17)*min_signed_div <= Int.min_signed). {
+    rewrite Heqmin_signed_div.
+    apply Z.mul_div_le; easy.
+  }
+  remember (Int.max_signed / 2^17) as max_signed_div.
+  assert ((2^17)*max_signed_div <= Int.max_signed < (2^17)*(Z.succ max_signed_div)). {
+    rewrite Heqmax_signed_div.
+    split.
+    - apply Z.mul_div_le; easy.
+    - apply Z.mul_succ_div_gt; easy.
+  }
 
-  (* unfold Int.shr, Int.shl. *)
-  (* repeat rewrite Int.signed_repr, Int.unsigned_repr; try repable_signed. *)
-  (* rewrite Int.unsigned_repr. *)
-  (* normalize. repable_signed. *)
-  (* normalize. *)
+  split3.
+  {
+    rewrite ltu_q_wordsize.
+    unfold is_true. trivial.
+  }
+  {
+    rewrite ltu_q_wordsize.
+    unfold is_true. trivial.
+  }
+  {
+    rewrite !Int.signed_repr; try omega.
 
-  (* (* Int.min_signed <= 1 <<< q >>> 1 <= Int.max_signed *) *)
-  (* split. *)
-  (* (**)  apply Z.le_trans with ((1 <<< 0) >>> 1). *)
-  (*   unfold Int.min_signed, Z.shiftr; simpl; omega. *)
-  (*   repeat rewrite Z.shiftr_div_pow2. *)
-  (*   simpl. *)
-  (*   unfold Z.pow_pos. simpl. *)
-  (*   apply Z.div_le_mono. *)
-  (*   omega. *)
-  (*   apply Z.le_trans with (1 <<< 0). *)
-  (*   simpl. omega. *)
-  (*   apply shiftl_mono_r; omega. *)
-  (*   omega. *)
-  (*   omega. *)
-  (* (**) apply Z.le_trans with ((1 <<< 15) >>> 1). *)
-  (*   repeat rewrite Z.shiftr_div_pow2. *)
-  (*   apply Z.div_le_mono. *)
-  (*   simpl. *)
-  (*   unfold Z.pow_pos. simpl. *)
-  (*   omega. *)
-  (*   apply shiftl_mono_r; omega. *)
-  (*   omega. *)
-  (*   omega. *)
-  (*   unfold Int.max_signed, Z.shiftr; simpl; omega. *)
-  (*   normalize. *)
+    repable_signed.
+    split.
+    apply Z.le_trans with min_signed_div.
+    rewrite Heqmin_signed_div. easy. omega.
+    apply Z.le_trans with max_signed_div.
+    omega. rewrite Heqmax_signed_div. easy.
+  }
 
-  (* split. *)
-  (* (**) admit. *)
-  (* (**) admit. *)
-  (* split. *)
-  (* (**) admit. *)
-  (* (**) admit. *)
-
-  (* split; repable_signed. *)
-Admitted.
+  (* Bug? These definitions seem to be lost by "forward." and "entailer!." *)
+  remember (Int.min_signed / 2^17) as min_signed_div.
+  assert ((2^17)*min_signed_div <= Int.min_signed). {
+    rewrite Heqmin_signed_div.
+    apply Z.mul_div_le; easy.
+  }
+  remember (Int.max_signed / 2^17) as max_signed_div.
+  assert ((2^17)*max_signed_div <= Int.max_signed < (2^17)*(Z.succ max_signed_div)). {
+    rewrite Heqmax_signed_div.
+    split.
+    - apply Z.mul_div_le; easy.
+    - apply Z.mul_succ_div_gt; easy.
+  }
+  
+  unfold sem_shift. simpl.
+  rewrite ltu_q_wordsize.
+  simpl.
+  entailer!.
+  unfold Int.shr, Int.shl.
+  rewrite !Int.unsigned_repr by repable_signed.
+  rewrite !Int.signed_repr.
+  omega.
+  omega.
+  rewrite !Int.signed_repr.
+  repable_signed.
+  omega.
+  
+  entailer!.
+  unfold sem_shift. simpl.
+  rewrite ltu_q_wordsize.
+  simpl.
+  rewrite ltu_q_wordsize.
+  simpl.
+  unfold Int.shl, Int.shr.
+  rewrite add_repr.
+  rewrite !Int.unsigned_repr; try repable_signed.
+  rewrite !Int.signed_repr.
+  f_equal.
+  omega.
+  rewrite !Int.signed_repr.
+  split.
+  omega.
+  omega.
+  omega.
+Qed.
 
 Lemma body_od_rot2: semax_body Vprog Gprog f_od_rot2 od_rot2_spec.
 Proof.
