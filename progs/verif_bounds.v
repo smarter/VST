@@ -5,29 +5,6 @@ Require Import BinInt.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-
-(* Functional spec of this program.  *)
-Definition sum_Z : list Z -> Z := fold_right Z.add 0.
-
-Lemma sum_Z_app:
-  forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
-Proof.
-  intros. induction a; simpl; omega.
-Qed.
-
-(* Beginning of the API spec for the sumarray.c program *)
-Definition sumtwo_spec : ident * funspec :=
- DECLARE _sumtwo
-  WITH sh : share, a: Z, b: Z
-  PRE [ _a OF tuchar, _b OF tuchar ]
-          PROP  (readable_share sh; 0 <= a <= 255; 0 <= b <= 255)
-          LOCAL (temp _a (Vint (Int.repr a)); temp _b (Vint (Int.repr b)))
-          SEP   (TT)
-  POST [ tshort ]
-          PROP (0 <= (a + b) <= 510)
-          LOCAL(temp ret_temp  (Vint (Int.repr (a + b))))
-          SEP (TT).
-
 Infix "<<<" := Z.shiftl (at level 51, left associativity).
 Infix ">>>" := Z.shiftr (at level 51, left associativity).
 
@@ -213,7 +190,7 @@ Definition od_fdct_2_spec : ident * funspec :=
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
-    sumtwo_spec; od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
+    od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
     od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec
   ]).
 
@@ -986,42 +963,7 @@ Proof.
   entailer!.
 Qed.
 
-Lemma body_sumarray: semax_body Vprog Gprog f_sumtwo sumtwo_spec.
-Proof.
-  start_function.
-  forward.
-  repeat split; try omega.
-  f_equal.
-  apply Int.same_bits_eq.
-  intros.
-  rewrite sign_ext_inrange.
-  reflexivity.
-  rewrite Int.signed_repr.
-  simpl.
-  omega.
-  repable_signed.
-Qed.
-
-
-(* Contents of the extern global initialized array "_four" *)
-Definition four_contents := [1; 2; 3; 4].
-
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
-Proof.
-name four _four.
-start_function.
-forward_call (*  s = sumarray(four,4); *)
-  (four,Ews,four_contents,4).
- split3; auto.
-   computable.
-   repeat constructor; computable.
-forward. (* return s; *)
-Qed.
-
-Existing Instance NullExtension.Espec.
-
-Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+Lemma prog_correct: semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_sumarray.
