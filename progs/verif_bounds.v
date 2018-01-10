@@ -990,9 +990,25 @@ Proof.
   entailer!.
 Qed.
 
+Lemma body_main: semax_body Vprog Gprog f_main main_spec.
+Proof.
+  start_function.
+  forward.
+Qed.
+
 
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct: semax_prog prog Vprog Gprog.
 Proof.
-prove_semax_prog.
+  prove_semax_prog.
+  semax_func_cons body_od_add.
+  semax_func_cons body_od_sub.
+  semax_func_cons body_od_add_avg.
+  semax_func_cons body_od_sub_avg.
+  semax_func_cons body_od_mul.
+  semax_func_cons body_od_rot2.
+  semax_func_cons body_od_rotate_pi4_kernel_sub_avg.
+  semax_func_cons body_od_fdct_2.
+  semax_func_cons body_main.
+Qed.
