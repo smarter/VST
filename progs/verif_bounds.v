@@ -188,10 +188,19 @@ Definition od_fdct_2_spec : ident * funspec :=
           SEP (data_at Ews tint (Vint (Int.repr (fst res))) p0;
                data_at Ews tint (Vint (Int.repr (snd res))) p1).
 
+Definition main_spec :=
+ DECLARE _main
+  WITH u : unit
+  PRE  [] main_pre prog nil u
+  POST [ tint ]
+     PROP ()
+     LOCAL ()
+     SEP(TT).
+
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
     od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
-    od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec
+    od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec; main_spec
   ]).
 
 Lemma div2_le: forall m, m <= 0 -> m <= Z.div2 m.
@@ -743,7 +752,7 @@ Proof.
     omega.
 
     replace (2^17) with 131072 in * by easy.
-    
+
     unfold Int.max_signed in *; simpl in *. omega.
   }
 
@@ -797,7 +806,7 @@ Proof.
     - apply Z.mul_div_le; easy.
     - apply Z.mul_succ_div_gt; easy.
   }
-  
+
   unfold sem_shift. simpl.
   rewrite ltu_q_wordsize.
   simpl.
@@ -810,7 +819,7 @@ Proof.
   rewrite !Int.signed_repr.
   repable_signed.
   omega.
-  
+
   entailer!.
   unfold sem_shift. simpl.
   rewrite ltu_q_wordsize.
@@ -963,9 +972,9 @@ Proof.
   entailer!.
 Qed.
 
+
+Existing Instance NullExtension.Espec.
+
 Lemma prog_correct: semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
-semax_func_cons body_sumarray.
-semax_func_cons body_main.
-Qed.

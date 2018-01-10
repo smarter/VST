@@ -49,62 +49,49 @@ Definition ___i64_udiv : ident := 21%positive.
 Definition ___i64_umod : ident := 23%positive.
 Definition ___i64_utod : ident := 17%positive.
 Definition ___i64_utof : ident := 19%positive.
-Definition _a : ident := 49%positive.
-Definition _avg : ident := 69%positive.
-Definition _b : ident := 50%positive.
-Definition _c : ident := 59%positive.
-Definition _c0 : ident := 63%positive.
-Definition _c1 : ident := 65%positive.
-Definition _main : ident := 72%positive.
-Definition _n : ident := 58%positive.
-Definition _od_add : ident := 54%positive.
-Definition _od_add_avg : ident := 56%positive.
-Definition _od_fdct_2 : ident := 71%positive.
-Definition _od_mul : ident := 61%positive.
-Definition _od_rot2 : ident := 67%positive.
-Definition _od_rotate_pi4_kernel : ident := 70%positive.
-Definition _od_sub : ident := 55%positive.
-Definition _od_sub_avg : ident := 57%positive.
-Definition _p0 : ident := 52%positive.
-Definition _p1 : ident := 53%positive.
-Definition _q : ident := 60%positive.
-Definition _q0 : ident := 64%positive.
-Definition _q1 : ident := 66%positive.
-Definition _sumtwo : ident := 51%positive.
-Definition _t : ident := 62%positive.
-Definition _type : ident := 68%positive.
-Definition _t'1 : ident := 73%positive.
-Definition _t'10 : ident := 82%positive.
-Definition _t'11 : ident := 83%positive.
-Definition _t'12 : ident := 84%positive.
-Definition _t'13 : ident := 85%positive.
-Definition _t'14 : ident := 86%positive.
-Definition _t'15 : ident := 87%positive.
-Definition _t'16 : ident := 88%positive.
-Definition _t'17 : ident := 89%positive.
-Definition _t'18 : ident := 90%positive.
-Definition _t'19 : ident := 91%positive.
-Definition _t'2 : ident := 74%positive.
-Definition _t'20 : ident := 92%positive.
-Definition _t'21 : ident := 93%positive.
-Definition _t'22 : ident := 94%positive.
-Definition _t'3 : ident := 75%positive.
-Definition _t'4 : ident := 76%positive.
-Definition _t'5 : ident := 77%positive.
-Definition _t'6 : ident := 78%positive.
-Definition _t'7 : ident := 79%positive.
-Definition _t'8 : ident := 80%positive.
-Definition _t'9 : ident := 81%positive.
-
-Definition f_sumtwo := {|
-  fn_return := tshort;
-  fn_callconv := cc_default;
-  fn_params := ((_a, tuchar) :: (_b, tuchar) :: nil);
-  fn_vars := nil;
-  fn_temps := nil;
-  fn_body :=
-(Sreturn (Some (Ebinop Oadd (Etempvar _a tuchar) (Etempvar _b tuchar) tint)))
-|}.
+Definition _avg : ident := 66%positive.
+Definition _c : ident := 56%positive.
+Definition _c0 : ident := 60%positive.
+Definition _c1 : ident := 62%positive.
+Definition _main : ident := 69%positive.
+Definition _n : ident := 55%positive.
+Definition _od_add : ident := 51%positive.
+Definition _od_add_avg : ident := 53%positive.
+Definition _od_fdct_2 : ident := 68%positive.
+Definition _od_mul : ident := 58%positive.
+Definition _od_rot2 : ident := 64%positive.
+Definition _od_rotate_pi4_kernel : ident := 67%positive.
+Definition _od_sub : ident := 52%positive.
+Definition _od_sub_avg : ident := 54%positive.
+Definition _p0 : ident := 49%positive.
+Definition _p1 : ident := 50%positive.
+Definition _q : ident := 57%positive.
+Definition _q0 : ident := 61%positive.
+Definition _q1 : ident := 63%positive.
+Definition _t : ident := 59%positive.
+Definition _type : ident := 65%positive.
+Definition _t'1 : ident := 70%positive.
+Definition _t'10 : ident := 79%positive.
+Definition _t'11 : ident := 80%positive.
+Definition _t'12 : ident := 81%positive.
+Definition _t'13 : ident := 82%positive.
+Definition _t'14 : ident := 83%positive.
+Definition _t'15 : ident := 84%positive.
+Definition _t'16 : ident := 85%positive.
+Definition _t'17 : ident := 86%positive.
+Definition _t'18 : ident := 87%positive.
+Definition _t'19 : ident := 88%positive.
+Definition _t'2 : ident := 71%positive.
+Definition _t'20 : ident := 89%positive.
+Definition _t'21 : ident := 90%positive.
+Definition _t'22 : ident := 91%positive.
+Definition _t'3 : ident := 72%positive.
+Definition _t'4 : ident := 73%positive.
+Definition _t'5 : ident := 74%positive.
+Definition _t'6 : ident := 75%positive.
+Definition _t'7 : ident := 76%positive.
+Definition _t'8 : ident := 77%positive.
+Definition _t'9 : ident := 78%positive.
 
 Definition f_od_add := {|
   fn_return := tint;
@@ -336,6 +323,18 @@ Definition f_od_fdct_2 := {|
    (Econst_int (Int.repr 11585) tint) :: (Econst_int (Int.repr 13) tint) ::
    (Econst_int (Int.repr 1) tint) ::
    (Eunop Onotbool (Econst_int (Int.repr 0) tint) tint) :: nil))
+|}.
+
+Definition f_main := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Ssequence
+  (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+  (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -570,16 +569,16 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_sumtwo, Gfun(Internal f_sumtwo)) :: (_od_add, Gfun(Internal f_od_add)) ::
- (_od_sub, Gfun(Internal f_od_sub)) ::
+ (_od_add, Gfun(Internal f_od_add)) :: (_od_sub, Gfun(Internal f_od_sub)) ::
  (_od_add_avg, Gfun(Internal f_od_add_avg)) ::
  (_od_sub_avg, Gfun(Internal f_od_sub_avg)) ::
  (_od_mul, Gfun(Internal f_od_mul)) ::
  (_od_rot2, Gfun(Internal f_od_rot2)) ::
  (_od_rotate_pi4_kernel, Gfun(Internal f_od_rotate_pi4_kernel)) ::
- (_od_fdct_2, Gfun(Internal f_od_fdct_2)) :: nil);
+ (_od_fdct_2, Gfun(Internal f_od_fdct_2)) ::
+ (_main, Gfun(Internal f_main)) :: nil);
 prog_public :=
-(_od_fdct_2 :: _sumtwo :: ___builtin_debug :: ___builtin_nop ::
+(_main :: _od_fdct_2 :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

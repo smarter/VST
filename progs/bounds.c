@@ -5,10 +5,6 @@ typedef int od_coeff;
 
 #define INLINE
 
-int16_t sumtwo(uint8_t a, uint8_t b) {
-  return a + b;
-}
-
 #define AVG_BIAS (0)
 
 static INLINE od_coeff od_add(od_coeff p0, od_coeff p1) {
@@ -67,4 +63,8 @@ static INLINE void od_rotate_pi4_kernel(od_coeff *p0, od_coeff *p1, int c0,
   /* 11585/8192 = Sin[Pi/4] + Cos[Pi/4]  = 1.4142135623730951 */
   /* 11585/8192 = 2*Cos[Pi/4]            = 1.4142135623730951 */
   od_rotate_pi4_sub_avg(p1, p0, 11585, 13, 11585, 13);
+}
+
+int main() {
+  return 0;
 }
