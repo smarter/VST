@@ -595,16 +595,16 @@ Proof.
   assert (Int.max_signed < (2^17)*(Z.succ max_signed_div)).
   rewrite Heqmax_signed_div.
   apply Z.mul_succ_div_gt; easy.
-  assert (8191 < max_signed_div). rewrite Heqmax_signed_div. easy.
 
+  replace (2^17) with 131072 in * by easy.
   split.
   split.
   apply Z.le_trans with 0; easy.
-  omega.
+  repable_signed.
   split.
   split.
   apply Z.le_trans with 0; easy.
-  omega.
+  repable_signed.
   easy.
 Qed.
 
