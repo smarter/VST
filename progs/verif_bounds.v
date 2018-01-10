@@ -199,7 +199,7 @@ Definition main_spec :=
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
-    od_add_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
+    od_add_spec; od_sub_spec; od_add_avg_spec; od_sub_avg_spec; od_mul_spec; od_rot2_spec;
     od_rotate_pi4_kernel_sub_avg_spec; od_fdct_2_spec; main_spec
   ]).
 
@@ -638,6 +638,16 @@ Proof.
   repable_signed.
 Qed.
 
+Lemma shr_signed: forall m n,
+    Int.min_signed <= m <= Int.max_signed ->
+    0 <= n <= Int.max_unsigned ->
+    Int.repr (m >>> n) = Int.shr (Int.repr m) (Int.repr n).
+  intros.
+  unfold Int.shr.
+  f_equal.
+  rewrite Int.signed_repr, Int.unsigned_repr; auto.
+Qed.
+
 Lemma body_od_add_avg: semax_body Vprog Gprog f_od_add_avg od_add_avg_spec.
 Proof.
   start_function.
@@ -666,14 +676,22 @@ Proof.
   trivial.
 Qed.
 
-Lemma shr_signed: forall m n,
-    Int.min_signed <= m <= Int.max_signed ->
-    0 <= n <= Int.max_unsigned ->
-    Int.repr (m >>> n) = Int.shr (Int.repr m) (Int.repr n).
-  intros.
-  unfold Int.shr.
-  f_equal.
-  rewrite Int.signed_repr, Int.unsigned_repr; auto.
+Lemma body_od_sub_avg: semax_body Vprog Gprog f_od_sub_avg od_sub_avg_spec.
+Proof.
+  start_function.
+  forward_call (p0, p1).
+
+  assert(sum_signed: Int.min_signed <= p0 - p1 <= Int.max_signed). {
+    unfold Z.shiftr in *.
+    simpl in *.
+    repable_signed.
+  }
+
+  unfold od_sub_avg_Z. unfold od_sub_Z.
+  forward.
+  entailer!.
+  rewrite <- shr_signed; try repable_signed.
+  auto.
 Qed.
 
 Lemma body_od_mul: semax_body Vprog Gprog f_od_mul od_mul_spec.
